@@ -1,8 +1,8 @@
-use axum::{Router, routing::get};
-use tokio::{signal};
-use tower_http::{trace::TraceLayer};
-use tracing::{debug, info, warn};
 use anyhow::{Context, Result};
+use axum::{Router, routing::get};
+use tokio::signal;
+use tower_http::trace::TraceLayer;
+use tracing::{debug, info, warn};
 
 use crate::config::Config;
 use crate::controllers;
