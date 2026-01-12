@@ -1,5 +1,5 @@
 pub mod config;
-pub mod controllers;
+pub mod handlers;
 pub mod server;
 
 use tracing::{debug, error, info};

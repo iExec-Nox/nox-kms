@@ -5,7 +5,7 @@ use tower_http::trace::TraceLayer;
 use tracing::{debug, info, warn};
 
 use crate::config::Config;
-use crate::controllers;
+use crate::handlers;
 
 pub struct Server {
     config: Config,
@@ -21,9 +21,9 @@ impl Server {
 
         Router::new()
             // Root endpoint
-            .route("/", get(controllers::root))
+            .route("/", get(handlers::root))
             // Health check endpoint
-            .route("/health", get(controllers::health_check))
+            .route("/health", get(handlers::health_check))
             .layer(TraceLayer::new_for_http())
     }
 
