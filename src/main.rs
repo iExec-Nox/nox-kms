@@ -1,6 +1,8 @@
 pub mod config;
 pub mod handlers;
 pub mod server;
+pub mod service;
+pub mod elliptic;
 
 use tracing::{debug, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

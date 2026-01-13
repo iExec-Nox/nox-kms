@@ -6,14 +6,19 @@ use tracing::{debug, info, warn};
 
 use crate::config::Config;
 use crate::handlers;
+use crate::service::KmsService;
 
 pub struct Server {
     config: Config,
+    service: KmsService,
 }
 
 impl Server {
     pub fn new(config: Config) -> Self {
-        Self { config }
+        Self { 
+            config,
+            service: KmsService::initialize()
+        }
     }
 
     fn build_router(&self) -> Router {
