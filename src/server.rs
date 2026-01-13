@@ -10,15 +10,17 @@ use crate::service::KmsService;
 
 pub struct Server {
     config: Config,
-    service: KmsService,
+    kms_service: KmsService,
 }
 
 impl Server {
-    pub fn new(config: Config) -> Self {
-        Self { 
+    pub fn new(config: Config) -> Result<Self> {
+        let kms_service = KmsService::load_or_generate(&config.key_file)
+            .context("Failed to load or generate KMS keys")?;
+        Ok(Self {
             config,
-            service: KmsService::initialize()
-        }
+            kms_service,
+        })
     }
 
     fn build_router(&self) -> Router {
@@ -29,6 +31,7 @@ impl Server {
             .route("/", get(handlers::root))
             // Health check endpoint
             .route("/health", get(handlers::health_check))
+            .with_state(self.kms_service.clone())
             .layer(TraceLayer::new_for_http())
     }
 
