@@ -1,6 +1,7 @@
-use axum::Json;
+use axum::{extract::State, Json};
 use chrono::Utc;
 use serde_json::{Value, json};
+use crate::service::KmsService;
 
 /// Root endpoint handler.
 ///
@@ -30,4 +31,16 @@ pub async fn root() -> Json<Value> {
 /// - `status`: The status of the service ("ok")
 pub async fn health_check() -> Json<Value> {
     Json(json!({ "status": "ok" }))
+}
+
+/// Get public key endpoint handler.
+///
+/// Returns the public key of the KMS service.
+///
+/// # Returns
+///
+/// JSON response containing:
+/// - `public_key`: The public key of the KMS service
+pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value> {
+    Json(json!({ "public_key": kms_service.public_key_to_hex() }))
 }

@@ -31,6 +31,7 @@ impl Server {
             .route("/", get(handlers::root))
             // Health check endpoint
             .route("/health", get(handlers::health_check))
+            .route("/v0/public-key", get(handlers::get_public_key))
             .with_state(self.kms_service.clone())
             .layer(TraceLayer::new_for_http())
     }
