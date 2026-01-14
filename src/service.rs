@@ -1,4 +1,6 @@
-use crate::elliptic::generate_key_pair;
+use crate::elliptic::{
+    generate_key_pair, hex_to_point, hex_to_rsa_public_key, rsa_encrypt_shared_secret,
+};
 use crate::errors::{KmsError, KmsResult};
 use k256::{
     ProjectivePoint as G, Scalar as F, U256,
@@ -117,5 +119,17 @@ impl KmsService {
     pub fn public_key_to_hex(&self) -> String {
         let bytes = &self.public_key.to_bytes();
         hex::encode(bytes)
+    }
+
+    pub fn ecies_delegate(
+        &self,
+        ephemeral_pub_key_hex: &String,
+        target_pub_key_hex: &String,
+    ) -> KmsResult<String> {
+        let ephemeral_pub_key = hex_to_point(ephemeral_pub_key_hex)?;
+        //extract rsa public key from target_pub_key_hex
+        let rsa_pub_key = hex_to_rsa_public_key(target_pub_key_hex)?;
+        let shared_secret = ephemeral_pub_key * self.private_key;
+        rsa_encrypt_shared_secret(&shared_secret, &rsa_pub_key)
     }
 }

@@ -1,7 +1,14 @@
 use crate::service::KmsService;
-use axum::{Json, extract::State};
+use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
+use serde::Deserialize;
 use serde_json::{Value, json};
+
+#[derive(Deserialize)]
+pub struct DelegateRequest {
+    pub ephemeral_pub_key: String,
+    pub target_pub_key: String,
+}
 
 /// Root endpoint handler.
 ///
@@ -43,4 +50,24 @@ pub async fn health_check() -> Json<Value> {
 /// - `public_key`: The public key of the KMS service
 pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value> {
     Json(json!({ "publicKey": kms_service.public_key_to_hex() }))
+}
+
+/// Delegate the computation of the encrypted shared secret RSA(K*priv_key).
+pub async fn delegate(
+    State(kms_service): State<KmsService>,
+    Json(payload): Json<DelegateRequest>,
+) -> impl axum::response::IntoResponse {
+    let result = kms_service.ecies_delegate(&payload.ephemeral_pub_key, &payload.target_pub_key);
+    match result {
+        Ok(encrypted_shared_secret_hex) => (
+            axum::http::StatusCode::OK,
+            Json(json!({ "encryptedSharedSecret": encrypted_shared_secret_hex })),
+        )
+            .into_response(),
+        Err(error) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(json!({ "error": error.to_string() })),
+        )
+            .into_response(),
+    }
 }
