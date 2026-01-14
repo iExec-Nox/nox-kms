@@ -1,10 +1,12 @@
 use config::{Config as ConfigBuilder, ConfigError, Environment};
 use serde::Deserialize;
+use std::path::PathBuf;
 use tracing::debug;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
+    pub key_file: PathBuf,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -18,6 +20,7 @@ impl Config {
         let config = ConfigBuilder::builder()
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 9000)?
+            .set_default("key_file", "kms.key")?
             .add_source(
                 Environment::with_prefix("NOX_KMS")
                     .prefix_separator("_")
