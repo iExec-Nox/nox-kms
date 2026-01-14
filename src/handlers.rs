@@ -1,7 +1,7 @@
-use axum::{extract::State, Json};
+use crate::service::KmsService;
+use axum::{Json, extract::State};
 use chrono::Utc;
 use serde_json::{Value, json};
-use crate::service::KmsService;
 
 /// Root endpoint handler.
 ///
