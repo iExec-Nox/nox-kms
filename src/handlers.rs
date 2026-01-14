@@ -42,5 +42,5 @@ pub async fn health_check() -> Json<Value> {
 /// JSON response containing:
 /// - `public_key`: The public key of the KMS service
 pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value> {
-    Json(json!({ "public_key": kms_service.public_key_to_hex() }))
+    Json(json!({ "publicKey": kms_service.public_key_to_hex() }))
 }
