@@ -20,11 +20,8 @@ pub fn hex_to_point(hex: &str) -> KmsResult<ProjectivePoint> {
         hex::decode(hex).map_err(|e| KmsError::Crypto(format!("Invalid hex string: {}", e)))?;
     let encoded = k256::EncodedPoint::from_bytes(&bytes)
         .map_err(|e| KmsError::Crypto(format!("Invalid public key encoding: {}", e)))?;
-    let point = ProjectivePoint::from_encoded_point(&encoded);
-    if point.is_none().into() {
-        return Err(KmsError::Crypto("Invalid public key point".to_string()));
-    }
-    Ok(point.unwrap())
+    Option::from(ProjectivePoint::from_encoded_point(&encoded))
+        .ok_or_else(|| KmsError::Crypto("Invalid public key point".to_string()))
 }
 
 /// Convert a hex string (without 0x prefix) to an RSA public key
