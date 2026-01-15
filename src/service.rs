@@ -123,8 +123,8 @@ impl KmsService {
 
     pub fn ecies_delegate(
         &self,
-        ephemeral_pub_key_hex: &String,
-        target_pub_key_hex: &String,
+        ephemeral_pub_key_hex: &str,
+        target_pub_key_hex: &str,
     ) -> KmsResult<String> {
         let ephemeral_pub_key = hex_to_point(ephemeral_pub_key_hex)?;
         //extract rsa public key from target_pub_key_hex
