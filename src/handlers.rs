@@ -1,10 +1,12 @@
 use crate::service::KmsService;
+use crate::utils::{add_0x_prefix, strip_0x_prefix};
 use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DelegateRequest {
     pub ephemeral_pub_key: String,
     pub target_pub_key: String,
@@ -53,15 +55,19 @@ pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value
 }
 
 /// Delegate the computation of the encrypted shared secret RSA(K*priv_key).
+/// Inputs and output are 0x-prefixed hex strings.
 pub async fn delegate(
     State(kms_service): State<KmsService>,
     Json(payload): Json<DelegateRequest>,
 ) -> impl axum::response::IntoResponse {
-    let result = kms_service.ecies_delegate(&payload.ephemeral_pub_key, &payload.target_pub_key);
+    let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
+    let target_pub_key = strip_0x_prefix(&payload.target_pub_key);
+
+    let result = kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key);
     match result {
         Ok(encrypted_shared_secret_hex) => (
             axum::http::StatusCode::OK,
-            Json(json!({ "encryptedSharedSecret": encrypted_shared_secret_hex })),
+            Json(json!({ "encryptedSharedSecret": add_0x_prefix(&encrypted_shared_secret_hex) })),
         )
             .into_response(),
         Err(error) => (

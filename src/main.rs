@@ -5,6 +5,7 @@ pub mod errors;
 pub mod handlers;
 pub mod server;
 pub mod service;
+pub mod utils;
 
 use tracing::{debug, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
