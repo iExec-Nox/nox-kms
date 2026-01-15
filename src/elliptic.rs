@@ -1,25 +1,26 @@
+use crate::constants::G;
 use crate::errors::{KmsError, KmsResult};
 use k256::{
-    ProjectivePoint as G, Scalar as F,
+    ProjectivePoint, Scalar as F,
     elliptic_curve::{Field, rand_core::OsRng, sec1::FromEncodedPoint},
 };
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};
 use sha2::Sha256;
 
-pub fn generate_key_pair() -> (F, G) {
+pub fn generate_key_pair() -> (F, ProjectivePoint) {
     let private_key = F::random(&mut OsRng);
-    let public_key = G::GENERATOR * private_key;
+    let public_key = G * private_key;
     (private_key, public_key)
 }
 
 /// Convert a hex string (without 0x prefix) to a public key (ProjectivePoint)
 /// Returns the public key or an error if the hex is invalid
-pub fn hex_to_point(hex: &str) -> KmsResult<G> {
+pub fn hex_to_point(hex: &str) -> KmsResult<ProjectivePoint> {
     let bytes =
         hex::decode(hex).map_err(|e| KmsError::Crypto(format!("Invalid hex string: {}", e)))?;
     let encoded = k256::EncodedPoint::from_bytes(&bytes)
         .map_err(|e| KmsError::Crypto(format!("Invalid public key encoding: {}", e)))?;
-    let point = G::from_encoded_point(&encoded);
+    let point = ProjectivePoint::from_encoded_point(&encoded);
     if point.is_none().into() {
         return Err(KmsError::Crypto("Invalid public key point".to_string()));
     }
@@ -40,7 +41,7 @@ pub fn hex_to_rsa_public_key(hex_spki: &str) -> KmsResult<RsaPublicKey> {
 /// Extracts the X-coordinate and encrypts it using RSA-OAEP with SHA-256.
 /// Returns the encrypted result as a hex string.
 pub fn rsa_encrypt_shared_secret(
-    shared_secret: &G,
+    shared_secret: &ProjectivePoint,
     rsa_public_key: &RsaPublicKey,
 ) -> KmsResult<String> {
     // Extract just the X-coordinate (32 bytes)
@@ -53,7 +54,7 @@ pub fn rsa_encrypt_shared_secret(
 }
 
 /// Extract X-coordinate from an EC point (32 bytes).
-pub fn get_x_coordinate(p: &G) -> KmsResult<Vec<u8>> {
+pub fn get_x_coordinate(p: &ProjectivePoint) -> KmsResult<Vec<u8>> {
     let enc = k256::EncodedPoint::from(p.to_affine());
     match enc.x() {
         Some(x) => Ok(x.to_vec()),

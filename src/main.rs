@@ -1,4 +1,5 @@
 pub mod config;
+pub mod constants;
 pub mod elliptic;
 pub mod errors;
 pub mod handlers;

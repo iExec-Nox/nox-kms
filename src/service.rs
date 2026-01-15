@@ -1,20 +1,19 @@
+use crate::constants::{G, KEY_FILE_SIZE};
 use crate::elliptic::{
     generate_key_pair, hex_to_point, hex_to_rsa_public_key, rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
 use k256::{
-    ProjectivePoint as G, Scalar as F, U256,
+    ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
 };
 use std::path::Path;
 use tracing::{info, warn};
 
-const KEY_FILE_SIZE: usize = 65;
-
 #[derive(Clone)]
 pub struct KmsService {
     pub private_key: F,
-    pub public_key: G,
+    pub public_key: ProjectivePoint,
 }
 
 impl KmsService {
@@ -71,14 +70,14 @@ impl KmsService {
         // Read public key (bytes 32-64)
         let encoded = k256::EncodedPoint::from_bytes(&data[32..65])
             .map_err(|e| KmsError::Storage(format!("Invalid public key encoding: {}", e)))?;
-        let public_key = G::from_encoded_point(&encoded);
+        let public_key = ProjectivePoint::from_encoded_point(&encoded);
         if public_key.is_none().into() {
             return Err(KmsError::Storage("Invalid public key point".to_string()));
         }
         let public_key = public_key.unwrap();
 
         // Verify that public key matches private key
-        let computed_public = G::GENERATOR * private_key;
+        let computed_public = G * private_key;
         if computed_public != public_key {
             return Err(KmsError::Storage(
                 "Public key does not match private key (file corrupted?)".to_string(),
