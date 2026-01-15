@@ -1,4 +1,4 @@
-use crate::constants::G;
+use crate::constants::{EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN, G, MIN_RSA_KEY_HEX_LEN};
 use crate::errors::{KmsError, KmsResult};
 use k256::{
     ProjectivePoint, Scalar as F,
@@ -59,4 +59,29 @@ pub fn get_x_coordinate(p: &ProjectivePoint) -> KmsResult<Vec<u8>> {
             "Failed to extract X-coordinate".to_string(),
         )),
     }
+}
+
+/// Validate that the ephemeral public key is 33 bytes (66 hex characters).
+/// Compressed SEC1 format: 0x02 or 0x03 prefix + 32 bytes X-coordinate.
+pub fn validate_ephemeral_pub_key_size(hex: &str) -> KmsResult<()> {
+    if hex.len() != EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN {
+        return Err(KmsError::Crypto(format!(
+            "Invalid ephemeral public key size: expected {} hex chars (33 bytes), got {}",
+            EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN,
+            hex.len()
+        )));
+    }
+    Ok(())
+}
+
+/// Validate that the RSA public key data has at least 256 bytes (2048 bits).
+pub fn validate_rsa_key_size(hex: &str) -> KmsResult<()> {
+    if hex.len() < MIN_RSA_KEY_HEX_LEN {
+        return Err(KmsError::Crypto(format!(
+            "Invalid RSA public key size: expected at least {} hex chars (256 bytes), got {}",
+            MIN_RSA_KEY_HEX_LEN,
+            hex.len()
+        )));
+    }
+    Ok(())
 }
