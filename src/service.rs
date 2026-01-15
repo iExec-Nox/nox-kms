@@ -124,16 +124,16 @@ impl KmsService {
     pub fn ecies_delegate(
         &self,
         ephemeral_pub_key_hex: &str,
-        target_pub_key_hex: &str,
+        target_rsa_pub_key_hex: &str,
     ) -> KmsResult<String> {
         debug!(
             ephemeral_pub_key = %truncate_hex(ephemeral_pub_key_hex, 16),
-            target_pub_key = %truncate_hex(target_pub_key_hex, 16),
+            target_pub_key = %truncate_hex(target_rsa_pub_key_hex, 16),
             "ecies_delegate called"
         );
 
         let ephemeral_pub_key = hex_to_point(ephemeral_pub_key_hex)?;
-        let rsa_pub_key = hex_to_rsa_public_key(target_pub_key_hex)?;
+        let rsa_pub_key = hex_to_rsa_public_key(target_rsa_pub_key_hex)?;
         let shared_secret = ephemeral_pub_key * self.private_key;
         let result = rsa_encrypt_shared_secret(&shared_secret, &rsa_pub_key)?;
 
