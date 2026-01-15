@@ -1,6 +1,6 @@
 pub mod config;
 pub mod constants;
-pub mod elliptic;
+pub mod crypto;
 pub mod errors;
 pub mod handlers;
 pub mod server;

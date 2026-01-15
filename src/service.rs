@@ -1,5 +1,5 @@
 use crate::constants::{G, KEY_FILE_SIZE};
-use crate::elliptic::{
+use crate::crypto::{
     generate_key_pair, hex_to_point, hex_to_rsa_public_key, rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
