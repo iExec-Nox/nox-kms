@@ -59,7 +59,7 @@ pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value
 pub async fn delegate(
     State(kms_service): State<KmsService>,
     Json(payload): Json<DelegateRequest>,
-) -> impl axum::response::IntoResponse {
+) -> impl IntoResponse {
     let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
     let target_pub_key = strip_0x_prefix(&payload.target_pub_key);
 
