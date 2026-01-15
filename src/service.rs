@@ -3,12 +3,13 @@ use crate::crypto::{
     generate_key_pair, hex_to_point, hex_to_rsa_public_key, rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
+use crate::utils::truncate_hex;
 use k256::{
     ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
 };
 use std::path::Path;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 #[derive(Clone)]
 pub struct KmsService {
@@ -125,10 +126,22 @@ impl KmsService {
         ephemeral_pub_key_hex: &str,
         target_pub_key_hex: &str,
     ) -> KmsResult<String> {
+        debug!(
+            ephemeral_pub_key = %truncate_hex(ephemeral_pub_key_hex, 16),
+            target_pub_key = %truncate_hex(target_pub_key_hex, 16),
+            "ecies_delegate called"
+        );
+
         let ephemeral_pub_key = hex_to_point(ephemeral_pub_key_hex)?;
-        //extract rsa public key from target_pub_key_hex
         let rsa_pub_key = hex_to_rsa_public_key(target_pub_key_hex)?;
         let shared_secret = ephemeral_pub_key * self.private_key;
-        rsa_encrypt_shared_secret(&shared_secret, &rsa_pub_key)
+        let result = rsa_encrypt_shared_secret(&shared_secret, &rsa_pub_key)?;
+
+        debug!(
+            encrypted_shared_secret = %truncate_hex(&result, 16),
+            "ecies_delegate completed"
+        );
+
+        Ok(result)
     }
 }

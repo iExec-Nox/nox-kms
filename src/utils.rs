@@ -7,3 +7,12 @@ pub fn strip_0x_prefix(s: &str) -> &str {
 pub fn add_0x_prefix(s: &str) -> String {
     format!("0x{}", s)
 }
+
+/// Truncate a hex string for logging, showing first N chars + "..."
+pub fn truncate_hex(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len])
+    }
+}
