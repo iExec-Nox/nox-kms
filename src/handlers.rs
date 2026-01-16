@@ -85,7 +85,7 @@ pub async fn delegate(
     }
 }
 
-///Helper to build a BAD_REQUEST response with a JSON error message.
+/// Helper to build a BAD_REQUEST response with a JSON error message.
 pub fn bad_request(e: impl std::fmt::Display) -> axum::response::Response {
     (
         StatusCode::BAD_REQUEST,
