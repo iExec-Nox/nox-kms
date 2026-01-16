@@ -1,5 +1,8 @@
 use anyhow::{Context, Result};
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, warn};
@@ -26,12 +29,16 @@ impl Server {
     fn build_router(&self) -> Router {
         debug!("Building application router");
 
+        let v0_routes = Router::new()
+            .route("/public-key", get(handlers::get_public_key))
+            .route("/delegate", post(handlers::delegate));
+
         Router::new()
             // Root endpoint
             .route("/", get(handlers::root))
             // Health check endpoint
             .route("/health", get(handlers::health_check))
-            .route("/v0/public-key", get(handlers::get_public_key))
+            .nest("/v0", v0_routes)
             .with_state(self.kms_service.clone())
             .layer(TraceLayer::new_for_http())
     }

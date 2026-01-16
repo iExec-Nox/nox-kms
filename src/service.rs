@@ -1,18 +1,20 @@
-use crate::elliptic::generate_key_pair;
+use crate::constants::{G, KEY_FILE_SIZE};
+use crate::crypto::{
+    generate_key_pair, hex_to_point, hex_to_rsa_public_key, rsa_encrypt_shared_secret,
+};
 use crate::errors::{KmsError, KmsResult};
+use crate::utils::truncate_hex;
 use k256::{
-    ProjectivePoint as G, Scalar as F, U256,
+    ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
 };
 use std::path::Path;
-use tracing::{info, warn};
-
-const KEY_FILE_SIZE: usize = 65;
+use tracing::{debug, info, warn};
 
 #[derive(Clone)]
 pub struct KmsService {
     pub private_key: F,
-    pub public_key: G,
+    pub public_key: ProjectivePoint,
 }
 
 impl KmsService {
@@ -69,14 +71,15 @@ impl KmsService {
         // Read public key (bytes 32-64)
         let encoded = k256::EncodedPoint::from_bytes(&data[32..65])
             .map_err(|e| KmsError::Storage(format!("Invalid public key encoding: {}", e)))?;
-        let public_key = G::from_encoded_point(&encoded);
+        let public_key = ProjectivePoint::from_encoded_point(&encoded);
         if public_key.is_none().into() {
             return Err(KmsError::Storage("Invalid public key point".to_string()));
         }
-        let public_key = public_key.unwrap();
+        let public_key = Option::from(ProjectivePoint::from_encoded_point(&encoded))
+            .ok_or_else(|| KmsError::Storage("Invalid public key point".to_string()))?;
 
         // Verify that public key matches private key
-        let computed_public = G::GENERATOR * private_key;
+        let computed_public = G * private_key;
         if computed_public != public_key {
             return Err(KmsError::Storage(
                 "Public key does not match private key (file corrupted?)".to_string(),
@@ -117,5 +120,58 @@ impl KmsService {
     pub fn public_key_to_hex(&self) -> String {
         let bytes = &self.public_key.to_bytes();
         hex::encode(bytes)
+    }
+
+    /// Delegates the computation of an RSA-encrypted shared secret for ECIES.
+    ///
+    /// This function implements the KMS-side of ECIES (Elliptic Curve Integrated Encryption Scheme)
+    /// with RSA-wrapped shared secret. It computes the shared secret from an ephemeral public key
+    /// and the KMS private key, then encrypts the X-coordinate of the shared secret using RSA-OAEP.
+    ///
+    ///
+    /// # Arguments
+    ///
+    /// * `ephemeral_pub_key_hex` - Hex-encoded ephemeral EC public key (compressed SEC1, 33 bytes = 66 hex chars)
+    ///   - Format: `02...` or `03...` followed by 64 hex characters
+    ///   - Example: `"02fb141baf73e215d2e61656444d66d18084782c14190b51d00811548238e29440"`
+    ///
+    /// * `target_rsa_pub_key_hex` - Hex-encoded RSA public key in SPKI DER format
+    ///   - Format: DER-encoded SubjectPublicKeyInfo
+    ///   - Example: `"30820122300d06092a864886f70d01010105000382010f..."`
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Hex-encoded RSA-encrypted shared secret (X-coordinate)
+    ///   - Length: 512 hex chars (256 bytes) for RSA-2048 and 1024 hex chars (512 bytes) for RSA-4096
+    ///   - Format: Hex string without 0x prefix
+    ///   - Algorithm: RSA-OAEP with SHA-256
+    ///
+    /// * `Err(KmsError::Crypto)` - If:
+    ///   - Invalid hex encoding in either input
+    ///   - Invalid EC point encoding
+    ///   - Invalid RSA public key DER format
+    ///   - RSA encryption fails
+    pub fn ecies_delegate(
+        &self,
+        ephemeral_pub_key_hex: &str,
+        target_rsa_pub_key_hex: &str,
+    ) -> KmsResult<String> {
+        debug!(
+            ephemeral_pub_key = %truncate_hex(ephemeral_pub_key_hex, 16),
+            target_pub_key = %truncate_hex(target_rsa_pub_key_hex, 16),
+            "ecies_delegate called"
+        );
+
+        let ephemeral_pub_key = hex_to_point(ephemeral_pub_key_hex)?;
+        let rsa_pub_key = hex_to_rsa_public_key(target_rsa_pub_key_hex)?;
+        let shared_secret = ephemeral_pub_key * self.private_key;
+        let result = rsa_encrypt_shared_secret(&shared_secret, &rsa_pub_key)?;
+
+        debug!(
+            encrypted_shared_secret = %truncate_hex(&result, 16),
+            "ecies_delegate completed"
+        );
+
+        Ok(result)
     }
 }
