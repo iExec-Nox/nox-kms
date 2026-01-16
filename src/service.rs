@@ -75,7 +75,8 @@ impl KmsService {
         if public_key.is_none().into() {
             return Err(KmsError::Storage("Invalid public key point".to_string()));
         }
-        let public_key = public_key.unwrap();
+        let public_key = Option::from(ProjectivePoint::from_encoded_point(&encoded))
+            .ok_or_else(|| KmsError::Storage("Invalid public key point".to_string()))?;
 
         // Verify that public key matches private key
         let computed_public = G * private_key;
