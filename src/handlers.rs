@@ -1,6 +1,6 @@
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
 use crate::service::KmsService;
-use crate::utils::{add_0x_prefix, strip_0x_prefix};
+use crate::utils::{add_0x_prefix, bad_request, strip_0x_prefix};
 use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
 use serde::Deserialize;
@@ -66,20 +66,12 @@ pub async fn delegate(
 
     // Validate ephemeral public key size (33 bytes)
     if let Err(e) = validate_ephemeral_pub_key_size(ephemeral_pub_key) {
-        return (
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response();
+        return bad_request(e);
     }
 
     // Validate RSA key size (minimum 2048 bits)
     if let Err(e) = validate_rsa_key_size(target_pub_key) {
-        return (
-            axum::http::StatusCode::BAD_REQUEST,
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response();
+        return bad_request(e);
     }
 
     let result = kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key);
