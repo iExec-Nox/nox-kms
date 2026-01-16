@@ -81,11 +81,7 @@ pub async fn delegate(
             Json(json!({ "encryptedSharedSecret": add_0x_prefix(&encrypted_shared_secret_hex) })),
         )
             .into_response(),
-        Err(error) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": error.to_string() })),
-        )
-            .into_response(),
+        Err(error) => bad_request(error),
     }
 }
 
