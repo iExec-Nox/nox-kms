@@ -1,6 +1,6 @@
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
 use crate::service::KmsService;
-use crate::utils::{add_0x_prefix, bad_request, strip_0x_prefix};
+use crate::utils::{add_0x_prefix, strip_0x_prefix};
 use axum::{Json, extract::State, response::IntoResponse};
 use chrono::Utc;
 use serde::Deserialize;
@@ -87,4 +87,13 @@ pub async fn delegate(
         )
             .into_response(),
     }
+}
+
+///Helper to build a BAD_REQUEST response with a JSON error message.
+pub fn bad_request(e: impl std::fmt::Display) -> axum::response::Response {
+    (
+        axum::http::StatusCode::BAD_REQUEST,
+        Json(json!({ "error": e.to_string() })),
+    )
+        .into_response()
 }

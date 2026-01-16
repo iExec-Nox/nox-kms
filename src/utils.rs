@@ -23,12 +23,3 @@ pub fn truncate_hex(s: &str, max_len: usize) -> String {
         format!("{}...", &s[..max_len])
     }
 }
-
-///Helper to build a BAD_REQUEST response with a JSON error message.
-pub fn bad_request(e: impl std::fmt::Display) -> axum::response::Response {
-    (
-        StatusCode::BAD_REQUEST,
-        Json(json!({ "error": e.to_string() })),
-    )
-        .into_response()
-}
