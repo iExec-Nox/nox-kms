@@ -1,7 +1,7 @@
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
 use crate::service::KmsService;
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::Utc;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -77,12 +77,12 @@ pub async fn delegate(
     let result = kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key);
     match result {
         Ok(encrypted_shared_secret_hex) => (
-            axum::http::StatusCode::OK,
+            StatusCode::OK,
             Json(json!({ "encryptedSharedSecret": add_0x_prefix(&encrypted_shared_secret_hex) })),
         )
             .into_response(),
         Err(error) => (
-            axum::http::StatusCode::BAD_REQUEST,
+            StatusCode::BAD_REQUEST,
             Json(json!({ "error": error.to_string() })),
         )
             .into_response(),
@@ -92,7 +92,7 @@ pub async fn delegate(
 ///Helper to build a BAD_REQUEST response with a JSON error message.
 pub fn bad_request(e: impl std::fmt::Display) -> axum::response::Response {
     (
-        axum::http::StatusCode::BAD_REQUEST,
+        StatusCode::BAD_REQUEST,
         Json(json!({ "error": e.to_string() })),
     )
         .into_response()
