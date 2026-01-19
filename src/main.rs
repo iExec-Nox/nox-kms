@@ -7,11 +7,20 @@ pub mod server;
 pub mod service;
 pub mod utils;
 
+use crate::service::KmsService;
+use axum_prometheus::PrometheusMetricLayer;
+use metrics_exporter_prometheus::PrometheusHandle;
 use tracing::{debug, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use config::Config;
 use server::Server;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub kms_service: KmsService,
+    pub metrics_handle: PrometheusHandle,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,8 +38,10 @@ async fn main() -> anyhow::Result<()> {
     })?;
     debug!("Configuration loaded: {:?}", config);
 
+    let (prometheus_layer, metrics_handle) = PrometheusMetricLayer::pair();
+
     info!("Starting KMS on {}", config.bind_addr());
-    let server = Server::new(config)?;
+    let server = Server::new(config, prometheus_layer, metrics_handle)?;
     server.run().await?;
 
     Ok(())

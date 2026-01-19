@@ -1,5 +1,5 @@
+use crate::AppState;
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
-use crate::service::KmsService;
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::Utc;
@@ -51,8 +51,8 @@ pub async fn health_check() -> Json<Value> {
 ///
 /// JSON response containing:
 /// - `public_key`: The public key of the KMS service
-pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value> {
-    Json(json!({ "publicKey": add_0x_prefix(&kms_service.public_key_to_hex()) }))
+pub async fn get_public_key(State(state): State<AppState>) -> Json<Value> {
+    Json(json!({ "publicKey": add_0x_prefix(&state.kms_service.public_key_to_hex()) }))
 }
 
 /// Delegate endpoint handler for ECIES shared secret computation.
@@ -84,7 +84,7 @@ pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value
 ///   - Invalid EC point or RSA key format
 ///   - RSA encryption failure
 pub async fn delegate(
-    State(kms_service): State<KmsService>,
+    State(state): State<AppState>,
     Json(payload): Json<DelegateRequest>,
 ) -> impl IntoResponse {
     let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
@@ -100,7 +100,9 @@ pub async fn delegate(
         return bad_request(e);
     }
 
-    let result = kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key);
+    let result = state
+        .kms_service
+        .ecies_delegate(ephemeral_pub_key, target_pub_key);
     match result {
         Ok(encrypted_shared_secret_hex) => (
             StatusCode::OK,
@@ -109,6 +111,10 @@ pub async fn delegate(
             .into_response(),
         Err(error) => bad_request(error),
     }
+}
+
+pub async fn metrics(State(state): State<AppState>) -> String {
+    state.metrics_handle.render()
 }
 
 /// Helper to build a BAD_REQUEST response with a JSON error message.
