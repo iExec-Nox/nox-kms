@@ -122,35 +122,18 @@ impl KmsService {
         hex::encode(bytes)
     }
 
-    /// Delegates the computation of an RSA-encrypted shared secret for ECIES.
+    /// Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
     ///
-    /// This function implements the KMS-side of ECIES (Elliptic Curve Integrated Encryption Scheme)
-    /// with RSA-wrapped shared secret. It computes the shared secret from an ephemeral public key
-    /// and the KMS private key, then encrypts the X-coordinate of the shared secret using RSA-OAEP.
-    ///
+    /// See [`handlers::delegate`] for full protocol details and input/output formats.
     ///
     /// # Arguments
     ///
-    /// * `ephemeral_pub_key_hex` - Hex-encoded ephemeral EC public key (compressed SEC1, 33 bytes = 66 hex chars)
-    ///   - Format: `02...` or `03...` followed by 64 hex characters
-    ///   - Example: `"02fb141baf73e215d2e61656444d66d18084782c14190b51d00811548238e29440"`
-    ///
-    /// * `target_rsa_pub_key_hex` - Hex-encoded RSA public key in SPKI DER format
-    ///   - Format: DER-encoded SubjectPublicKeyInfo
-    ///   - Example: `"30820122300d06092a864886f70d01010105000382010f..."`
+    /// * `ephemeral_pub_key_hex` - Hex-encoded compressed SEC1 EC public key (33 bytes, no 0x prefix)
+    /// * `target_rsa_pub_key_hex` - Hex-encoded RSA public key in SPKI DER format (no 0x prefix)
     ///
     /// # Returns
     ///
-    /// * `Ok(String)` - Hex-encoded RSA-encrypted shared secret (X-coordinate)
-    ///   - Length: 512 hex chars (256 bytes) for RSA-2048 and 1024 hex chars (512 bytes) for RSA-4096
-    ///   - Format: Hex string without 0x prefix
-    ///   - Algorithm: RSA-OAEP with SHA-256
-    ///
-    /// * `Err(KmsError::Crypto)` - If:
-    ///   - Invalid hex encoding in either input
-    ///   - Invalid EC point encoding
-    ///   - Invalid RSA public key DER format
-    ///   - RSA encryption fails
+    /// Hex-encoded RSA-OAEP encrypted shared secret (no 0x prefix), or `KmsError::Crypto` on failure.
     pub fn ecies_delegate(
         &self,
         ephemeral_pub_key_hex: &str,

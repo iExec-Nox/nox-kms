@@ -55,8 +55,34 @@ pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value
     Json(json!({ "publicKey": add_0x_prefix(&kms_service.public_key_to_hex()) }))
 }
 
-/// Delegate the computation of the encrypted shared secret RSA(K*priv_key).
-/// Inputs and output are 0x-prefixed hex strings.
+/// Delegate endpoint handler for ECIES shared secret computation.
+///
+/// This endpoint implements the KMS-side of ECIES (Elliptic Curve Integrated Encryption Scheme)
+/// with RSA-wrapped shared secret. It computes the ECDH shared secret from the provided ephemeral
+/// public key and the KMS private key, then encrypts the X-coordinate using RSA-OAEP (SHA-256)
+/// to delegate the decryption of the shared secret to the owner of the RSA public key.
+///
+/// # Request Body
+///
+/// JSON object with the following fields (all hex strings must be 0x-prefixed):
+/// - `ephemeralPubKey`: Compressed SEC1 EC public key (33 bytes = 66 hex chars + "0x" prefix)
+///   - Format: `0x02...` or `0x03...` followed by 64 hex characters
+/// - `targetPubKey`: RSA public key in SPKI DER format (minimum 2048 bits)
+///   - Format: `0x` + DER-encoded SubjectPublicKeyInfo
+///
+/// # Returns
+///
+/// **Success (200 OK)**:
+/// - `encryptedSharedSecret`: 0x-prefixed hex string of the RSA-encrypted shared secret
+///   - 512 hex chars for RSA-2048, 1024 hex chars for RSA-4096
+///
+/// **Error (400 Bad Request)**:
+/// - `error`: Description of what went wrong:
+///   - Invalid ephemeral public key size (must be 33 bytes)
+///   - Invalid RSA key size (must be at least 2048 bits)
+///   - Invalid hex encoding
+///   - Invalid EC point or RSA key format
+///   - RSA encryption failure
 pub async fn delegate(
     State(kms_service): State<KmsService>,
     Json(payload): Json<DelegateRequest>,
