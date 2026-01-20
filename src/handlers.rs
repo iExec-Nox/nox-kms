@@ -52,8 +52,8 @@ pub async fn health_check() -> Json<Value> {
 ///
 /// JSON response containing:
 /// - `public_key`: The public key of the KMS service
-pub async fn get_public_key(State(state): State<KmsService>) -> Json<Value> {
-    Json(json!({ "publicKey": add_0x_prefix(&state.public_key_to_hex()) }))
+pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value> {
+    Json(json!({ "publicKey": add_0x_prefix(&kms_service.public_key_to_hex()) }))
 }
 
 /// Delegate endpoint handler for ECIES shared secret computation.
@@ -85,7 +85,7 @@ pub async fn get_public_key(State(state): State<KmsService>) -> Json<Value> {
 ///   - Invalid EC point or RSA key format
 ///   - RSA encryption failure
 pub async fn delegate(
-    State(state): State<KmsService>,
+    State(kms_service): State<KmsService>,
     Json(payload): Json<DelegateRequest>,
 ) -> impl IntoResponse {
     let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
@@ -101,7 +101,7 @@ pub async fn delegate(
         return bad_request(e);
     }
 
-    let result = state.ecies_delegate(ephemeral_pub_key, target_pub_key);
+    let result = kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key);
     match result {
         Ok(encrypted_shared_secret_hex) => (
             StatusCode::OK,
@@ -112,8 +112,8 @@ pub async fn delegate(
     }
 }
 
-pub async fn metrics(State(handle): State<PrometheusHandle>) -> String {
-    handle.render()
+pub async fn metrics(State(metrics_handle): State<PrometheusHandle>) -> String {
+    metrics_handle.render()
 }
 
 /// Helper to build a BAD_REQUEST response with a JSON error message.
