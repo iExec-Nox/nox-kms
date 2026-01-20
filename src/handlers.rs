@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::application::AppState;
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};

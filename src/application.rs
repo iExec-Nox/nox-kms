@@ -9,18 +9,23 @@ use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, warn};
 
-use crate::AppState;
 use crate::config::Config;
 use crate::handlers;
 use crate::service::KmsService;
 
-pub struct Server {
+#[derive(Clone)]
+pub struct AppState {
+    pub kms_service: KmsService,
+    pub metrics_handle: PrometheusHandle,
+}
+
+pub struct Application {
     config: Config,
     state: AppState,
     prometheus_layer: PrometheusMetricLayer<'static>,
 }
 
-impl Server {
+impl Application {
     pub fn new(
         config: Config,
         prometheus_layer: PrometheusMetricLayer<'static>,
@@ -74,6 +79,7 @@ impl Server {
         Ok(())
     }
 }
+
 async fn shutdown_signal() {
     let ctrl_c = async {
         signal::ctrl_c()
