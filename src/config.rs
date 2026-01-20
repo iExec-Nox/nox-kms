@@ -1,6 +1,7 @@
+use std::path::PathBuf;
+
 use config::{Config as ConfigBuilder, ConfigError, Environment};
 use serde::Deserialize;
-use std::path::PathBuf;
 use tracing::debug;
 
 #[derive(Debug, Deserialize)]

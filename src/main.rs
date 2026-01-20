@@ -10,8 +10,8 @@ pub mod utils;
 use tracing::{debug, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use application::Application;
-use config::Config;
+use crate::application::Application;
+use crate::config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

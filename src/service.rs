@@ -1,15 +1,17 @@
+use std::path::Path;
+
+use k256::{
+    ProjectivePoint, Scalar as F, U256,
+    elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
+};
+use tracing::{debug, info, warn};
+
 use crate::constants::{G, KEY_FILE_SIZE};
 use crate::crypto::{
     generate_key_pair, hex_to_point, hex_to_rsa_public_key, rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
 use crate::utils::truncate_hex;
-use k256::{
-    ProjectivePoint, Scalar as F, U256,
-    elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
-};
-use std::path::Path;
-use tracing::{debug, info, warn};
 
 #[derive(Clone)]
 pub struct KmsService {
