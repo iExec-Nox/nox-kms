@@ -7,11 +7,10 @@ pub mod handlers;
 pub mod service;
 pub mod utils;
 
-use tracing::{debug, error, info};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
 use application::Application;
 use config::Config;
+use tracing::{debug, error, info};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

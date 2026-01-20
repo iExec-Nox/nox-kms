@@ -1,11 +1,12 @@
-use crate::constants::{EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN, G, MIN_RSA_KEY_HEX_LEN};
-use crate::errors::{KmsError, KmsResult};
 use k256::{
     ProjectivePoint, Scalar as F,
     elliptic_curve::{Field, rand_core::OsRng, sec1::FromEncodedPoint},
 };
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};
 use sha2::Sha256;
+
+use crate::constants::{EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN, G, MIN_RSA_KEY_HEX_LEN};
+use crate::errors::{KmsError, KmsResult};
 
 pub fn generate_key_pair() -> (F, ProjectivePoint) {
     let private_key = F::random(&mut OsRng);
