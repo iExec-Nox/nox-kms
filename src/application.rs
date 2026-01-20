@@ -14,10 +14,22 @@ use crate::config::Config;
 use crate::handlers;
 use crate::service::KmsService;
 
-#[derive(FromRef, Clone)]
+#[derive(Clone)]
 pub struct AppState {
     pub kms_service: KmsService,
     pub metrics_handle: PrometheusHandle,
+}
+
+impl FromRef<AppState> for KmsService {
+    fn from_ref(state: &AppState) -> Self {
+        state.kms_service.clone()
+    }
+}
+
+impl FromRef<AppState> for PrometheusHandle {
+    fn from_ref(state: &AppState) -> Self {
+        state.metrics_handle.clone()
+    }
 }
 
 pub struct Application {
