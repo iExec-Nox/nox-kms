@@ -3,6 +3,7 @@ use crate::service::KmsService;
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use chrono::Utc;
+use metrics_exporter_prometheus::PrometheusHandle;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -109,6 +110,10 @@ pub async fn delegate(
             .into_response(),
         Err(error) => bad_request(error),
     }
+}
+
+pub async fn metrics(State(metrics_handle): State<PrometheusHandle>) -> String {
+    metrics_handle.render()
 }
 
 /// Helper to build a BAD_REQUEST response with a JSON error message.

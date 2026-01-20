@@ -1,17 +1,17 @@
+pub mod application;
 pub mod config;
 pub mod constants;
 pub mod crypto;
 pub mod errors;
 pub mod handlers;
-pub mod server;
 pub mod service;
 pub mod utils;
 
 use tracing::{debug, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+use application::Application;
 use config::Config;
-use server::Server;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -30,8 +30,8 @@ async fn main() -> anyhow::Result<()> {
     debug!("Configuration loaded: {:?}", config);
 
     info!("Starting KMS on {}", config.bind_addr());
-    let server = Server::new(config)?;
-    server.run().await?;
+    let app = Application::new(config)?;
+    app.run().await?;
 
     Ok(())
 }
