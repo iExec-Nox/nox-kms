@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use axum::{
     Router,
+    extract::FromRef,
     routing::{get, post},
 };
 use axum_prometheus::PrometheusMetricLayer;
@@ -13,7 +14,7 @@ use crate::config::Config;
 use crate::handlers;
 use crate::service::KmsService;
 
-#[derive(Clone)]
+#[derive(FromRef, Clone)]
 pub struct AppState {
     pub kms_service: KmsService,
     pub metrics_handle: PrometheusHandle,
