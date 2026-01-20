@@ -7,7 +7,6 @@ pub mod handlers;
 pub mod service;
 pub mod utils;
 
-use axum_prometheus::PrometheusMetricLayer;
 use tracing::{debug, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -30,10 +29,8 @@ async fn main() -> anyhow::Result<()> {
     })?;
     debug!("Configuration loaded: {:?}", config);
 
-    let (prometheus_layer, metrics_handle) = PrometheusMetricLayer::pair();
-
     info!("Starting KMS on {}", config.bind_addr());
-    let app = Application::new(config, prometheus_layer, metrics_handle)?;
+    let app = Application::new(config)?;
     app.run().await?;
 
     Ok(())
