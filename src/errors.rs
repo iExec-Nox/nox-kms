@@ -1,3 +1,5 @@
+use axum::{Json, http::StatusCode, response::IntoResponse};
+use serde_json::json;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -6,6 +8,16 @@ pub enum KmsError {
     Crypto(String),
     #[error("Storage error: {0}")]
     Storage(String),
+}
+
+impl IntoResponse for KmsError {
+    fn into_response(self) -> axum::response::Response {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": self.to_string() })),
+        )
+            .into_response()
+    }
 }
 
 pub type KmsResult<T> = Result<T, KmsError>;

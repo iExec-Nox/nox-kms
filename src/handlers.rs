@@ -1,10 +1,11 @@
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{Json, extract::State};
 use chrono::Utc;
 use metrics_exporter_prometheus::PrometheusHandle;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
+use crate::errors::KmsResult;
 use crate::service::KmsService;
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
 
@@ -13,6 +14,18 @@ use crate::utils::{add_0x_prefix, strip_0x_prefix};
 pub struct DelegateRequest {
     pub ephemeral_pub_key: String,
     pub target_pub_key: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicKeyResponse {
+    pub public_key: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DelegateResponse {
+    pub encrypted_shared_secret: String,
 }
 
 /// Root endpoint handler.
@@ -53,8 +66,10 @@ pub async fn health_check() -> Json<Value> {
 ///
 /// JSON response containing:
 /// - `public_key`: The public key of the KMS service
-pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value> {
-    Json(json!({ "publicKey": add_0x_prefix(&kms_service.public_key_to_hex()) }))
+pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<PublicKeyResponse> {
+    Json(PublicKeyResponse {
+        public_key: add_0x_prefix(&kms_service.public_key_to_hex()),
+    })
 }
 
 /// Delegate endpoint handler for ECIES shared secret computation.
@@ -88,40 +103,23 @@ pub async fn get_public_key(State(kms_service): State<KmsService>) -> Json<Value
 pub async fn delegate(
     State(kms_service): State<KmsService>,
     Json(payload): Json<DelegateRequest>,
-) -> impl IntoResponse {
+) -> KmsResult<Json<DelegateResponse>> {
     let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
     let target_pub_key = strip_0x_prefix(&payload.target_pub_key);
 
     // Validate ephemeral public key size (33 bytes)
-    if let Err(e) = validate_ephemeral_pub_key_size(ephemeral_pub_key) {
-        return bad_request(e);
-    }
+    validate_ephemeral_pub_key_size(ephemeral_pub_key)?;
 
     // Validate RSA key size (minimum 2048 bits)
-    if let Err(e) = validate_rsa_key_size(target_pub_key) {
-        return bad_request(e);
-    }
+    validate_rsa_key_size(target_pub_key)?;
 
-    let result = kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key);
-    match result {
-        Ok(encrypted_shared_secret_hex) => (
-            StatusCode::OK,
-            Json(json!({ "encryptedSharedSecret": add_0x_prefix(&encrypted_shared_secret_hex) })),
-        )
-            .into_response(),
-        Err(error) => bad_request(error),
-    }
+    let encrypted_shared_secret_hex =
+        kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key)?;
+    Ok(Json(DelegateResponse {
+        encrypted_shared_secret: add_0x_prefix(&encrypted_shared_secret_hex),
+    }))
 }
 
 pub async fn metrics(State(metrics_handle): State<PrometheusHandle>) -> String {
     metrics_handle.render()
-}
-
-/// Helper to build a BAD_REQUEST response with a JSON error message.
-pub fn bad_request(e: impl std::fmt::Display) -> axum::response::Response {
-    (
-        StatusCode::BAD_REQUEST,
-        Json(json!({ "error": e.to_string() })),
-    )
-        .into_response()
 }
