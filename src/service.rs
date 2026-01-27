@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use alloy_signer_local::PrivateKeySigner;
 use k256::{
     ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
@@ -17,6 +18,7 @@ use crate::utils::truncate_hex;
 pub struct KmsService {
     pub private_key: F,
     pub public_key: ProjectivePoint,
+    pub signer: PrivateKeySigner,
 }
 
 impl KmsService {
@@ -45,9 +47,14 @@ impl KmsService {
 
     fn generate() -> Self {
         let (private_key, public_key) = generate_key_pair();
+
+        let signer = alloy_signer_local::PrivateKeySigner::random();
+        info!("EIP-712 signer address: {}", signer.address());
+        
         Self {
             private_key,
             public_key,
+            signer
         }
     }
 
@@ -88,9 +95,13 @@ impl KmsService {
             ));
         }
 
+        let signer = alloy_signer_local::PrivateKeySigner::random();
+        info!("EIP-712 signer address: {}", signer.address());
+
         Ok(Self {
             private_key,
             public_key,
+            signer
         })
     }
 
