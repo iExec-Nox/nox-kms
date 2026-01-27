@@ -8,4 +8,4 @@ target
 *.md
 
 kms.key
-signer.json
+keystore_signer.json

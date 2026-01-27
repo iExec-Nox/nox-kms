@@ -120,8 +120,9 @@ impl KmsService {
         if public_key.is_none().into() {
             return Err(KmsError::Storage("Invalid public key point".to_string()));
         }
-        let public_key = Option::from(ProjectivePoint::from_encoded_point(&encoded))
-            .ok_or_else(|| KmsError::Storage("Invalid public key point".to_string()))?;
+        let public_key: ProjectivePoint =
+            Option::from(ProjectivePoint::from_encoded_point(&encoded))
+                .ok_or_else(|| KmsError::Storage("Invalid public key point".to_string()))?;
 
         // Verify that public key matches private key
         let computed_public = G * private_key;
@@ -130,6 +131,12 @@ impl KmsService {
                 "Public key does not match private key (file corrupted?)".to_string(),
             ));
         }
+
+        info!(
+            "Loaded EC keys from key file {:?}, pubkey: {}",
+            path,
+            hex::encode(public_key.to_bytes())
+        );
 
         Ok((private_key, public_key))
     }
@@ -178,7 +185,7 @@ impl KmsService {
         let filename = keystore_file
             .file_name()
             .and_then(|f| f.to_str())
-            .unwrap_or("signer.json");
+            .unwrap_or("keystore_signer.json");
 
         // Encrypt and save the keystore
         let (_wallet, _file_path) = PrivateKeySigner::encrypt_keystore(

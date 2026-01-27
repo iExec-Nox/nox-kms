@@ -26,7 +26,7 @@ impl Config {
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 9000)?
             .set_default("key_file", "kms.key")?
-            .set_default("keystore_file", "signer.json")?
+            .set_default("keystore_file", "keystore_signer.json")?
             .set_default("keystore_password", "")?
             // Load environment variables (NOX_KMS_*)
             .add_source(
@@ -35,10 +35,7 @@ impl Config {
                     .separator("__"),
             )
             // Load secrets from files (NOX_KMS_*_FILE -> reads file content)
-            .add_source(
-                EnvironmentSecretFile::with_prefix("NOX_KMS")
-                    .separator("_"),
-            )
+            .add_source(EnvironmentSecretFile::with_prefix("NOX_KMS").separator("_"))
             .build()?;
 
         config.try_deserialize()
