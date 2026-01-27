@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use config::{Config as ConfigBuilder, ConfigError, Environment};
+use config_secret::EnvironmentSecretFile;
 use serde::Deserialize;
 use tracing::debug;
 
@@ -9,6 +10,7 @@ pub struct Config {
     pub server: ServerConfig,
     pub key_file: PathBuf,
     pub keystore_file: PathBuf,
+    /// Keystore password (can be set via NOX_KMS_KEYSTORE_PASSWORD or NOX_KMS_KEYSTORE_PASSWORD_FILE)
     pub keystore_password: String,
 }
 
@@ -25,11 +27,17 @@ impl Config {
             .set_default("server.port", 9000)?
             .set_default("key_file", "kms.key")?
             .set_default("keystore_file", "signer.json")?
-            .set_default("keystore_password", "changeme")?
+            .set_default("keystore_password", "")?
+            // Load environment variables (NOX_KMS_*)
             .add_source(
                 Environment::with_prefix("NOX_KMS")
                     .prefix_separator("_")
                     .separator("__"),
+            )
+            // Load secrets from files (NOX_KMS_*_FILE -> reads file content)
+            .add_source(
+                EnvironmentSecretFile::with_prefix("NOX_KMS")
+                    .separator("_"),
             )
             .build()?;
 

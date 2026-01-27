@@ -10,6 +10,7 @@ axum = "0.8.8"
 axum-prometheus = "0.10.0"
 chrono = { version = "0.4.42", features = ["serde"] }
 config = "0.15.19"
+config-secret = "0.1.0"
 hex = "0.4.3"
 k256 = { version = "0.13", features = ["arithmetic", "serde", "expose-field"] }
 metrics-exporter-prometheus = "0.18.1"
