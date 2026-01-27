@@ -75,13 +75,6 @@ impl KmsService {
         keystore_file: &Path,
         password: &str,
     ) -> KmsResult<PrivateKeySigner> {
-        if !keystore_file.exists() {
-            return Err(KmsError::Storage(format!(
-                "Keystore file not found: {:?}",
-                keystore_file
-            )));
-        }
-
         let signer = PrivateKeySigner::decrypt_keystore(keystore_file, password)
             .map_err(|e| KmsError::Storage(format!("Failed to decrypt keystore: {}", e)))?;
 
