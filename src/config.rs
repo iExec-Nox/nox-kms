@@ -8,8 +8,8 @@ use tracing::debug;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub server: ServerConfig,
-    pub key_file: PathBuf,
-    pub keystore_file: PathBuf,
+    pub key_filename: PathBuf,
+    pub keystore_filename: PathBuf,
     /// Keystore password (can be set via NOX_KMS_KEYSTORE_PASSWORD or NOX_KMS_KEYSTORE_PASSWORD_FILE)
     pub keystore_password: String,
 }
@@ -25,8 +25,8 @@ impl Config {
         let config = ConfigBuilder::builder()
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 9000)?
-            .set_default("key_file", "kms.key")?
-            .set_default("keystore_file", "keystore_signer.json")?
+            .set_default("key_filename", "kms.key")?
+            .set_default("keystore_filename", "keystore_signer.json")?
             .set_default("keystore_password", "")?
             // Load environment variables (NOX_KMS_*)
             .add_source(
