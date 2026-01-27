@@ -5,6 +5,7 @@ use k256::{
     ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
 };
+use rand::thread_rng;
 use tracing::{debug, info, warn};
 
 use crate::constants::{G, KEY_FILE_SIZE};
@@ -23,10 +24,14 @@ pub struct KmsService {
 
 impl KmsService {
     /// Loads keys from file, or generates and saves new keys if file doesn't exist
-    pub fn load_or_generate(key_file: &Path) -> KmsResult<Self> {
-        if key_file.exists() {
+    pub fn load_or_generate(
+        key_file: &Path,
+        keystore_file: &Path,
+        keystore_password: &str,
+    ) -> KmsResult<Self> {
+        if key_file.exists() && keystore_file.exists() {
             info!("Loading existing keys from {:?}", key_file);
-            let service = Self::load_from_file(key_file)?;
+            let service = Self::load_from_file(key_file, keystore_file, keystore_password)?;
             info!(
                 "Keys loaded successfully, public key: {}",
                 service.public_key_to_hex()
@@ -35,7 +40,7 @@ impl KmsService {
         } else {
             warn!("Key file {:?} not found, generating new keys", key_file);
             let service = Self::generate();
-            service.save_to_file(key_file)?;
+            service.save_to_file(key_file, keystore_file, keystore_password)?;
             info!(
                 "New keys generated and saved to {:?}, public key: {}",
                 key_file,
@@ -47,19 +52,86 @@ impl KmsService {
 
     fn generate() -> Self {
         let (private_key, public_key) = generate_key_pair();
-
-        let signer = alloy_signer_local::PrivateKeySigner::random();
+        let signer = PrivateKeySigner::random();
         info!("EIP-712 signer address: {}", signer.address());
-        
+
         Self {
             private_key,
             public_key,
-            signer
+            signer,
         }
     }
 
+    /// Saves the signer to an encrypted keystore file
+    fn save_signer_to_keystore(
+        signer: &PrivateKeySigner,
+        keystore_file: &Path,
+        password: &str,
+    ) -> KmsResult<()> {
+        let mut rng = thread_rng();
+
+        // Get the private key bytes from the signer
+        let credential = signer.credential();
+        let private_key_bytes = credential.to_bytes();
+
+        // Get parent directory and filename from the path
+        let dir = keystore_file.parent().unwrap_or(Path::new("."));
+        let filename = keystore_file
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or("signer.json");
+
+        // Encrypt and save the keystore
+        let (_wallet, _file_path) = PrivateKeySigner::encrypt_keystore(
+            dir,
+            &mut rng,
+            private_key_bytes,
+            password,
+            Some(filename),
+        )
+        .map_err(|e| KmsError::Storage(format!("Failed to encrypt keystore: {}", e)))?;
+
+        info!("Signer keystore saved to {:?}", keystore_file);
+
+        // Set file permissions to 600 (owner read/write only) on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let permissions = std::fs::Permissions::from_mode(0o600);
+            std::fs::set_permissions(keystore_file, permissions)
+                .map_err(|e| KmsError::Storage(format!("Failed to set keystore permissions: {}", e)))?;
+        }
+
+        Ok(())
+    }
+
+    /// Loads the signer from an encrypted keystore file
+    fn load_signer_from_keystore(keystore_file: &Path, password: &str) -> KmsResult<PrivateKeySigner> {
+        if !keystore_file.exists() {
+            return Err(KmsError::Storage(format!(
+                "Keystore file not found: {:?}",
+                keystore_file
+            )));
+        }
+
+        let signer = PrivateKeySigner::decrypt_keystore(keystore_file, password)
+            .map_err(|e| KmsError::Storage(format!("Failed to decrypt keystore: {}", e)))?;
+
+        info!(
+            "Loaded signer from keystore {:?}, address: {}",
+            keystore_file,
+            signer.address()
+        );
+
+        Ok(signer)
+    }
+
     /// Loads the keys from a binary file
-    fn load_from_file(path: &Path) -> KmsResult<Self> {
+    fn load_from_file(
+        path: &Path,
+        keystore_file: &Path,
+        keystore_password: &str,
+    ) -> KmsResult<Self> {
         let data = std::fs::read(path)
             .map_err(|e| KmsError::Storage(format!("Failed to read key file: {}", e)))?;
 
@@ -95,18 +167,25 @@ impl KmsService {
             ));
         }
 
-        let signer = alloy_signer_local::PrivateKeySigner::random();
+        // Load the signer from the encrypted keystore
+        let signer = Self::load_signer_from_keystore(keystore_file, keystore_password)?;
         info!("EIP-712 signer address: {}", signer.address());
 
         Ok(Self {
             private_key,
             public_key,
-            signer
+            signer,
         })
     }
 
-    /// Saves the keys to a binary file with secure permissions (600)
-    fn save_to_file(&self, path: &Path) -> KmsResult<()> {
+    /// Saves all keys to files with secure permissions (600)
+    fn save_to_file(
+        &self,
+        path: &Path,
+        keystore_file: &Path,
+        keystore_password: &str,
+    ) -> KmsResult<()> {
+        // Save EC keys to binary file
         let mut data = Vec::with_capacity(KEY_FILE_SIZE);
 
         // Write private key (32 bytes)
@@ -126,6 +205,9 @@ impl KmsService {
             std::fs::set_permissions(path, permissions)
                 .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))?;
         }
+
+        // Save signer to encrypted keystore
+        Self::save_signer_to_keystore(&self.signer, keystore_file, keystore_password)?;
 
         Ok(())
     }

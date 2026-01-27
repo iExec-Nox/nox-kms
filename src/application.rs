@@ -40,8 +40,12 @@ pub struct Application {
 
 impl Application {
     pub fn new(config: Config) -> Result<Self> {
-        let kms_service = KmsService::load_or_generate(&config.key_file)
-            .context("Failed to load or generate KMS keys")?;
+        let kms_service = KmsService::load_or_generate(
+            &config.key_file,
+            &config.keystore_file,
+            &config.keystore_password,
+        )
+        .context("Failed to load or generate KMS keys")?;
         let (prometheus_layer, metrics_handle) = PrometheusMetricLayer::pair();
         Ok(Self {
             config,

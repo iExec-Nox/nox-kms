@@ -8,6 +8,8 @@ use tracing::debug;
 pub struct Config {
     pub server: ServerConfig,
     pub key_file: PathBuf,
+    pub keystore_file: PathBuf,
+    pub keystore_password: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -22,6 +24,8 @@ impl Config {
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 9000)?
             .set_default("key_file", "kms.key")?
+            .set_default("keystore_file", "signer.json")?
+            .set_default("keystore_password", "changeme")?
             .add_source(
                 Environment::with_prefix("NOX_KMS")
                     .prefix_separator("_")

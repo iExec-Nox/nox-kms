@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-alloy-signer-local = "1.0.42"
+alloy-signer-local = { version = "1.0.42", features = ["keystore"] }
 anyhow = "1.0.100"
 axum = "0.8.8"
 axum-prometheus = "0.10.0"
@@ -13,6 +13,7 @@ config = "0.15.19"
 hex = "0.4.3"
 k256 = { version = "0.13", features = ["arithmetic", "serde", "expose-field"] }
 metrics-exporter-prometheus = "0.18.1"
+rand = "0.8"
 rsa = "0.9.10"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
