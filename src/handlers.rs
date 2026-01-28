@@ -20,7 +20,7 @@ pub struct DelegateRequest {
 #[serde(rename_all = "camelCase")]
 pub struct PublicKeyResponse {
     pub public_key: String,
-    pub proof: String
+    pub proof: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -68,7 +68,9 @@ pub async fn health_check() -> Json<Value> {
 /// JSON response containing:
 /// - `public_key`: The public key of the KMS service
 /// - `proof`: The proof of the public key (0x-prefixed signature)
-pub async fn get_public_key(State(kms_service): State<KmsService>) -> KmsResult<Json<PublicKeyResponse>> {
+pub async fn get_public_key(
+    State(kms_service): State<KmsService>,
+) -> KmsResult<Json<PublicKeyResponse>> {
     Ok(Json(PublicKeyResponse {
         public_key: add_0x_prefix(&kms_service.public_key_to_hex()),
         proof: kms_service.compute_public_key_proof()?,

@@ -27,6 +27,25 @@ fn set_secure_permissions(path: &Path) -> KmsResult<()> {
         .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))
 }
 
+/// Verifies that file permissions are 600 (owner read/write only) on Unix systems.
+#[cfg(unix)]
+fn verify_permissions(path: &Path) -> KmsResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| KmsError::Storage(format!("Failed to read file metadata: {}", e)))?;
+
+    let mode = metadata.permissions().mode() & 0o777;
+    if mode != 0o600 {
+        return Err(KmsError::Storage(format!(
+            "Insecure file permissions: {:o} (expected 600)",
+            mode
+        )));
+    }
+
+    Ok(())
+}
+
 // EIP-712 domain name for PublicKeyProof generation
 const PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME: &str = "ProtocolPublicKey";
 
@@ -54,29 +73,29 @@ impl KmsService {
         chain_id: u32,
     ) -> KmsResult<Self> {
         // Load or generate EC keys
-        let (private_key, public_key) = if key_file.exists() {
-            info!("Loading existing encryption keys from {:?}", key_file);
-            Self::load_ec_keys_from_key_file(key_file)?
-        } else {
+        if !key_file.exists() {
             warn!("Key file {:?} not found, generating new EC keys", key_file);
             let keys = generate_ec_key_pair();
             Self::save_ec_keys_to_key_file(&keys, key_file)?;
-            keys
-        };
+        }
+        #[cfg(unix)]
+        verify_permissions(key_file)?;
+        info!("Loading existing encryption keys from {:?}", key_file);
+        let (private_key, public_key) = Self::load_ec_keys_from_key_file(key_file)?;
 
         // Load or generate signer
-        let signer = if keystore_file.exists() {
-            info!("Loading existing signer from {:?}", keystore_file);
-            Self::load_signer_from_keystore(keystore_file, keystore_password)?
-        } else {
+        if !keystore_file.exists() {
             warn!(
                 "Keystore file {:?} not found, generating new signer",
                 keystore_file
             );
             let signer = generate_sign_key();
             Self::save_signer_to_keystore(&signer, keystore_file, keystore_password)?;
-            signer
-        };
+        }
+        #[cfg(unix)]
+        verify_permissions(keystore_file)?;
+        info!("Loading existing signer from {:?}", keystore_file);
+        let signer = Self::load_signer_from_keystore(keystore_file, keystore_password)?;
 
         let service = Self {
             private_key,
