@@ -18,34 +18,6 @@ use crate::crypto::{
 use crate::errors::{KmsError, KmsResult};
 use crate::utils::{serialize_bytes, truncate_hex};
 
-/// Sets file permissions to 600 (owner read/write only) on Unix systems.
-#[cfg(unix)]
-fn set_secure_permissions(path: &Path) -> KmsResult<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let permissions = std::fs::Permissions::from_mode(0o600);
-    std::fs::set_permissions(path, permissions)
-        .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))
-}
-
-/// Verifies that file permissions are 600 (owner read/write only) on Unix systems.
-#[cfg(unix)]
-fn verify_permissions(path: &Path) -> KmsResult<()> {
-    use std::os::unix::fs::PermissionsExt;
-
-    let metadata = std::fs::metadata(path)
-        .map_err(|e| KmsError::Storage(format!("Failed to read file metadata: {}", e)))?;
-
-    let mode = metadata.permissions().mode() & 0o777;
-    if mode != 0o600 {
-        return Err(KmsError::Storage(format!(
-            "Insecure file permissions: {:o} (expected 600)",
-            mode
-        )));
-    }
-
-    Ok(())
-}
-
 sol! {
     #[derive(Debug)]
     struct PublicKeyProof{
@@ -290,4 +262,32 @@ impl KmsService {
 
         Ok(result)
     }
+}
+
+/// Sets file permissions to 600 (owner read/write only) on Unix systems.
+#[cfg(unix)]
+fn set_secure_permissions(path: &Path) -> KmsResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let permissions = std::fs::Permissions::from_mode(0o600);
+    std::fs::set_permissions(path, permissions)
+        .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))
+}
+
+/// Verifies that file permissions are 600 (owner read/write only) on Unix systems.
+#[cfg(unix)]
+fn verify_permissions(path: &Path) -> KmsResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| KmsError::Storage(format!("Failed to read file metadata: {}", e)))?;
+
+    let mode = metadata.permissions().mode() & 0o777;
+    if mode != 0o600 {
+        return Err(KmsError::Storage(format!(
+            "Insecure file permissions: {:o} (expected 600)",
+            mode
+        )));
+    }
+
+    Ok(())
 }
