@@ -1,3 +1,4 @@
+use alloy_signer_local::PrivateKeySigner;
 use k256::{
     ProjectivePoint, Scalar as F,
     elliptic_curve::{Field, rand_core::OsRng, sec1::FromEncodedPoint},
@@ -8,10 +9,15 @@ use sha2::Sha256;
 use crate::constants::{EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN, G, MIN_RSA_KEY_HEX_LEN};
 use crate::errors::{KmsError, KmsResult};
 
-pub fn generate_key_pair() -> (F, ProjectivePoint) {
+pub fn generate_ec_key_pair() -> (F, ProjectivePoint) {
     let private_key = F::random(&mut OsRng);
     let public_key = G * private_key;
     (private_key, public_key)
+}
+
+/// Generates a new random signing key
+pub fn generate_sign_key() -> PrivateKeySigner {
+    PrivateKeySigner::random()
 }
 
 /// Convert a hex string (without 0x prefix) to a public key (ProjectivePoint)
