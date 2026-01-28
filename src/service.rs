@@ -1,6 +1,8 @@
 use std::path::Path;
 
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::{eip712_domain, sol};
+use alloy_signer::{SignerSync};
 use k256::{
     ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
@@ -14,13 +16,24 @@ use crate::crypto::{
     rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
-use crate::utils::truncate_hex;
+use crate::utils::{serialize_bytes, truncate_hex};
+
+// EIP-712 domain name for PublicKeyProof generation
+const PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME: &str = "ProtocolPublicKey";
+
+sol! {
+    #[derive(Debug)]
+    struct PublicKeyProof{
+        string publicKey;
+    }
+}
 
 #[derive(Clone)]
 pub struct KmsService {
     pub private_key: F,
     pub public_key: ProjectivePoint,
     pub signer: PrivateKeySigner,
+    pub chain_id: u32,
 }
 
 impl KmsService {
@@ -29,6 +42,7 @@ impl KmsService {
         key_file: &Path,
         keystore_file: &Path,
         keystore_password: &str,
+        chain_id: u32,
     ) -> KmsResult<Self> {
         // Load or generate EC keys
         let (private_key, public_key) = if key_file.exists() {
@@ -59,6 +73,7 @@ impl KmsService {
             private_key,
             public_key,
             signer,
+            chain_id,
         };
 
         info!(
@@ -208,6 +223,24 @@ impl KmsService {
     pub fn public_key_to_hex(&self) -> String {
         let bytes = &self.public_key.to_bytes();
         hex::encode(bytes)
+    }
+
+    pub fn compute_public_key_proof(&self) -> KmsResult<String> {
+        let domain = eip712_domain! {
+            name: PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
+            version: "1",
+            chain_id: u64::from(self.chain_id),
+        };
+        let proof = PublicKeyProof {
+            publicKey: self.public_key_to_hex(),
+        };
+        let signature = self
+        .signer
+        .sign_typed_data_sync(&proof, &domain)
+        .map_err(|e| KmsError::Crypto(format!("Failed to sign PubliKeyProof: {}", e)))?
+        .as_bytes();
+
+        Ok(serialize_bytes(&signature))
     }
 
     /// Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.

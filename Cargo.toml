@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+alloy-signer = { version = "1.5.2", features = ["eip712"] }
 alloy-signer-local = { version = "1.5", features = ["keystore"] }
+alloy-sol-types = "1.5.3"
 anyhow = "1.0.100"
 axum = "0.8.8"
 axum-prometheus = "0.10.0"

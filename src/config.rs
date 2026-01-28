@@ -12,6 +12,7 @@ pub struct Config {
     pub keystore_filename: PathBuf,
     /// Keystore password (can be set via NOX_KMS_KEYSTORE_PASSWORD or NOX_KMS_KEYSTORE_PASSWORD_FILE)
     pub keystore_password: String,
+    pub chain_id: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -28,6 +29,7 @@ impl Config {
             .set_default("key_filename", "kms.key")?
             .set_default("keystore_filename", "keystore_signer.json")?
             .set_default("keystore_password", "")?
+            .set_default("chain_id", 1)?
             // Load environment variables (NOX_KMS_*)
             .add_source(
                 Environment::with_prefix("NOX_KMS")

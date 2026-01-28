@@ -20,3 +20,7 @@ pub fn truncate_hex(s: &str, max_len: usize) -> String {
         format!("{}...", &s[..max_len])
     }
 }
+
+pub fn serialize_bytes(bytes: &[u8]) -> String {
+    format!("0x{}", hex::encode(bytes))
+}

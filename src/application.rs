@@ -44,6 +44,7 @@ impl Application {
             &config.key_filename,
             &config.keystore_filename,
             &config.keystore_password,
+            config.chain_id,
         )
         .context("Failed to load or generate KMS keys")?;
         let (prometheus_layer, metrics_handle) = PrometheusMetricLayer::pair();
