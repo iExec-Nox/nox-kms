@@ -252,7 +252,7 @@ impl KmsService {
         let signature = self
             .signer
             .sign_typed_data_sync(&proof, &domain)
-            .map_err(|e| KmsError::Crypto(format!("Failed to sign PubliKeyProof: {}", e)))?
+            .map_err(|e| KmsError::Crypto(format!("Failed to sign PublicKeyProof: {}", e)))?
             .as_bytes();
 
         Ok(serialize_bytes(&signature))
