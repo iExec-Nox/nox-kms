@@ -18,6 +18,15 @@ use crate::crypto::{
 use crate::errors::{KmsError, KmsResult};
 use crate::utils::{serialize_bytes, truncate_hex};
 
+/// Sets file permissions to 600 (owner read/write only) on Unix systems.
+#[cfg(unix)]
+fn set_secure_permissions(path: &Path) -> KmsResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let permissions = std::fs::Permissions::from_mode(0o600);
+    std::fs::set_permissions(path, permissions)
+        .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))
+}
+
 // EIP-712 domain name for PublicKeyProof generation
 const PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME: &str = "ProtocolPublicKey";
 
@@ -163,14 +172,8 @@ impl KmsService {
         std::fs::write(path, &data)
             .map_err(|e| KmsError::Storage(format!("Failed to write key file: {}", e)))?;
 
-        // Set file permissions to 600 (owner read/write only) on Unix
         #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let permissions = std::fs::Permissions::from_mode(0o600);
-            std::fs::set_permissions(path, permissions)
-                .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))?;
-        }
+        set_secure_permissions(path)?;
 
         info!("EC keys saved to {:?}", path);
         Ok(())
@@ -205,17 +208,10 @@ impl KmsService {
         )
         .map_err(|e| KmsError::Storage(format!("Failed to encrypt keystore: {}", e)))?;
 
-        info!("Signer keystore saved to {:?}", keystore_file);
-
-        // Set file permissions to 600 (owner read/write only) on Unix
         #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let permissions = std::fs::Permissions::from_mode(0o600);
-            std::fs::set_permissions(keystore_file, permissions).map_err(|e| {
-                KmsError::Storage(format!("Failed to set keystore permissions: {}", e))
-            })?;
-        }
+        set_secure_permissions(keystore_file)?;
+
+        info!("Signer keystore saved to {:?}", keystore_file);
 
         Ok(())
     }
