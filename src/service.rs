@@ -1,8 +1,8 @@
 use std::path::Path;
 
+use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{eip712_domain, sol};
-use alloy_signer::{SignerSync};
 use k256::{
     ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
@@ -235,10 +235,10 @@ impl KmsService {
             publicKey: self.public_key_to_hex(),
         };
         let signature = self
-        .signer
-        .sign_typed_data_sync(&proof, &domain)
-        .map_err(|e| KmsError::Crypto(format!("Failed to sign PubliKeyProof: {}", e)))?
-        .as_bytes();
+            .signer
+            .sign_typed_data_sync(&proof, &domain)
+            .map_err(|e| KmsError::Crypto(format!("Failed to sign PubliKeyProof: {}", e)))?
+            .as_bytes();
 
         Ok(serialize_bytes(&signature))
     }

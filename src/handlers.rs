@@ -67,7 +67,7 @@ pub async fn health_check() -> Json<Value> {
 ///
 /// JSON response containing:
 /// - `public_key`: The public key of the KMS service
-/// - `proof`: The proof of the public key
+/// - `proof`: The proof of the public key (0x-prefixed signature)
 pub async fn get_public_key(State(kms_service): State<KmsService>) -> KmsResult<Json<PublicKeyResponse>> {
     Ok(Json(PublicKeyResponse {
         public_key: add_0x_prefix(&kms_service.public_key_to_hex()),
