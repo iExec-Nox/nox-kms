@@ -1,6 +1,8 @@
 use std::path::Path;
 
+use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::{eip712_domain, sol};
 use k256::{
     ProjectivePoint, Scalar as F, U256,
     elliptic_curve::{group::GroupEncoding, scalar::FromUintUnchecked, sec1::FromEncodedPoint},
@@ -8,19 +10,27 @@ use k256::{
 use rand_core::OsRng;
 use tracing::{debug, info, warn};
 
-use crate::constants::{G, KEY_FILE_SIZE};
+use crate::constants::{G, KEY_FILE_SIZE, PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME};
 use crate::crypto::{
     generate_ec_key_pair, generate_sign_key, hex_to_point, hex_to_rsa_public_key,
     rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
-use crate::utils::truncate_hex;
+use crate::utils::{serialize_bytes, truncate_hex};
+
+sol! {
+    #[derive(Debug)]
+    struct PublicKeyProof{
+        string publicKey;
+    }
+}
 
 #[derive(Clone)]
 pub struct KmsService {
     pub private_key: F,
     pub public_key: ProjectivePoint,
     pub signer: PrivateKeySigner,
+    pub chain_id: u32,
 }
 
 impl KmsService {
@@ -29,36 +39,38 @@ impl KmsService {
         key_file: &Path,
         keystore_file: &Path,
         keystore_password: &str,
+        chain_id: u32,
     ) -> KmsResult<Self> {
         // Load or generate EC keys
-        let (private_key, public_key) = if key_file.exists() {
-            info!("Loading existing encryption keys from {:?}", key_file);
-            Self::load_ec_keys_from_key_file(key_file)?
-        } else {
+        if !key_file.exists() {
             warn!("Key file {:?} not found, generating new EC keys", key_file);
             let keys = generate_ec_key_pair();
             Self::save_ec_keys_to_key_file(&keys, key_file)?;
-            keys
-        };
+        }
+        #[cfg(unix)]
+        verify_permissions(key_file)?;
+        info!("Loading existing encryption keys from {:?}", key_file);
+        let (private_key, public_key) = Self::load_ec_keys_from_key_file(key_file)?;
 
         // Load or generate signer
-        let signer = if keystore_file.exists() {
-            info!("Loading existing signer from {:?}", keystore_file);
-            Self::load_signer_from_keystore(keystore_file, keystore_password)?
-        } else {
+        if !keystore_file.exists() {
             warn!(
                 "Keystore file {:?} not found, generating new signer",
                 keystore_file
             );
             let signer = generate_sign_key();
             Self::save_signer_to_keystore(&signer, keystore_file, keystore_password)?;
-            signer
-        };
+        }
+        #[cfg(unix)]
+        verify_permissions(keystore_file)?;
+        info!("Loading existing signer from {:?}", keystore_file);
+        let signer = Self::load_signer_from_keystore(keystore_file, keystore_password)?;
 
         let service = Self {
             private_key,
             public_key,
             signer,
+            chain_id,
         };
 
         info!(
@@ -148,14 +160,8 @@ impl KmsService {
         std::fs::write(path, &data)
             .map_err(|e| KmsError::Storage(format!("Failed to write key file: {}", e)))?;
 
-        // Set file permissions to 600 (owner read/write only) on Unix
         #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let permissions = std::fs::Permissions::from_mode(0o600);
-            std::fs::set_permissions(path, permissions)
-                .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))?;
-        }
+        set_secure_permissions(path)?;
 
         info!("EC keys saved to {:?}", path);
         Ok(())
@@ -190,17 +196,10 @@ impl KmsService {
         )
         .map_err(|e| KmsError::Storage(format!("Failed to encrypt keystore: {}", e)))?;
 
-        info!("Signer keystore saved to {:?}", keystore_file);
-
-        // Set file permissions to 600 (owner read/write only) on Unix
         #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let permissions = std::fs::Permissions::from_mode(0o600);
-            std::fs::set_permissions(keystore_file, permissions).map_err(|e| {
-                KmsError::Storage(format!("Failed to set keystore permissions: {}", e))
-            })?;
-        }
+        set_secure_permissions(keystore_file)?;
+
+        info!("Signer keystore saved to {:?}", keystore_file);
 
         Ok(())
     }
@@ -208,6 +207,24 @@ impl KmsService {
     pub fn public_key_to_hex(&self) -> String {
         let bytes = &self.public_key.to_bytes();
         hex::encode(bytes)
+    }
+
+    pub fn compute_public_key_proof(&self) -> KmsResult<String> {
+        let domain = eip712_domain! {
+            name: PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
+            version: "1",
+            chain_id: u64::from(self.chain_id),
+        };
+        let proof = PublicKeyProof {
+            publicKey: self.public_key_to_hex(),
+        };
+        let signature = self
+            .signer
+            .sign_typed_data_sync(&proof, &domain)
+            .map_err(|e| KmsError::Crypto(format!("Failed to sign PublicKeyProof: {}", e)))?
+            .as_bytes();
+
+        Ok(serialize_bytes(&signature))
     }
 
     /// Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
@@ -245,4 +262,32 @@ impl KmsService {
 
         Ok(result)
     }
+}
+
+/// Sets file permissions to 600 (owner read/write only) on Unix systems.
+#[cfg(unix)]
+fn set_secure_permissions(path: &Path) -> KmsResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let permissions = std::fs::Permissions::from_mode(0o600);
+    std::fs::set_permissions(path, permissions)
+        .map_err(|e| KmsError::Storage(format!("Failed to set file permissions: {}", e)))
+}
+
+/// Verifies that file permissions are 600 (owner read/write only) on Unix systems.
+#[cfg(unix)]
+fn verify_permissions(path: &Path) -> KmsResult<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let metadata = std::fs::metadata(path)
+        .map_err(|e| KmsError::Storage(format!("Failed to read file metadata: {}", e)))?;
+
+    let mode = metadata.permissions().mode() & 0o777;
+    if mode != 0o600 {
+        return Err(KmsError::Storage(format!(
+            "Insecure file permissions: {:o} (expected 600)",
+            mode
+        )));
+    }
+
+    Ok(())
 }
