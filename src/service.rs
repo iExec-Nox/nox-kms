@@ -10,7 +10,7 @@ use k256::{
 use rand_core::OsRng;
 use tracing::{debug, info, warn};
 
-use crate::constants::{G, KEY_FILE_SIZE};
+use crate::constants::{G, KEY_FILE_SIZE, PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME};
 use crate::crypto::{
     generate_ec_key_pair, generate_sign_key, hex_to_point, hex_to_rsa_public_key,
     rsa_encrypt_shared_secret,
@@ -45,9 +45,6 @@ fn verify_permissions(path: &Path) -> KmsResult<()> {
 
     Ok(())
 }
-
-// EIP-712 domain name for PublicKeyProof generation
-const PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME: &str = "ProtocolPublicKey";
 
 sol! {
     #[derive(Debug)]
