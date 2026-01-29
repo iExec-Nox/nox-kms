@@ -1,9 +1,12 @@
 use alloy_signer::Signature;
 use alloy_sol_types::{SolStruct, eip712_domain, sol};
-use axum::{Json, extract::State, http::header::HeaderMap};
+use axum::{
+    Json,
+    extract::State,
+    http::header::{AUTHORIZATION, HeaderMap},
+};
 use chrono::Utc;
 use metrics_exporter_prometheus::PrometheusHandle;
-use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
