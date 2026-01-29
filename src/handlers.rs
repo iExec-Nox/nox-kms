@@ -133,8 +133,7 @@ pub async fn delegate(
         ))?
         .to_str()
         .map_err(|e| KmsError::Authentication(format!("Invalid Authorization header: {}", e)))?
-        .trim_start_matches("Bearer ")
-        .trim_start_matches("0x");
+        .trim_start_matches("Bearer 0x");
 
     verify_delegate_authorization(signature_str, u64::from(kms_service.chain_id), &payload)?;
 
