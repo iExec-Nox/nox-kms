@@ -9,6 +9,10 @@ pub enum KmsError {
     Crypto(String),
     #[error("Storage error: {0}")]
     Storage(String),
+    #[error("Authentication error: {0}")]
+    Authentication(String),
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
 }
 
 impl IntoResponse for KmsError {

@@ -17,6 +17,7 @@ hex = "0.4.3"
 k256 = { version = "0.13", features = ["arithmetic", "serde", "expose-field"] }
 metrics-exporter-prometheus = "0.18.1"
 rand_core = { version = "0.6", features = ["getrandom"] }
+reqwest = "0.13.1"
 rsa = "0.9.10"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

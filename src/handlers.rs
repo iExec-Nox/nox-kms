@@ -1,10 +1,15 @@
-use axum::{Json, extract::State};
+use alloy_signer::Signature;
+use alloy_sol_types::{SolStruct, eip712_domain, sol};
+use axum::{Json, extract::State, http::header::HeaderMap};
 use chrono::Utc;
 use metrics_exporter_prometheus::PrometheusHandle;
+use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use crate::constants::{EIP_712_DOMAIN_VERSION, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME};
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
+use crate::errors::KmsError;
 use crate::errors::KmsResult;
 use crate::service::KmsService;
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
@@ -27,6 +32,14 @@ pub struct PublicKeyResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DelegateResponse {
     pub encrypted_shared_secret: String,
+}
+
+sol! {
+    #[derive(Debug)]
+    struct DelegateAuthorization {
+        string ephemeralPubKey;
+        string targetPubKey;
+    }
 }
 
 /// Root endpoint handler.
@@ -107,8 +120,21 @@ pub async fn get_public_key(
 ///   - RSA encryption failure
 pub async fn delegate(
     State(kms_service): State<KmsService>,
+    headers: HeaderMap,
     Json(payload): Json<DelegateRequest>,
 ) -> KmsResult<Json<DelegateResponse>> {
+    let signature_str = headers
+        .get(AUTHORIZATION)
+        .ok_or(KmsError::Authentication(
+            "Authorization header is required".to_string(),
+        ))?
+        .to_str()
+        .map_err(|e| KmsError::Authentication(format!("Invalid Authorization header: {}", e)))?
+        .trim_start_matches("Bearer ")
+        .trim_start_matches("0x");
+
+    verify_delegate_authorization(signature_str, u64::from(kms_service.chain_id), &payload)?;
+
     let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
     let target_pub_key = strip_0x_prefix(&payload.target_pub_key);
 
@@ -127,4 +153,45 @@ pub async fn delegate(
 
 pub async fn metrics(State(metrics_handle): State<PrometheusHandle>) -> String {
     metrics_handle.render()
+}
+
+/// Verifies the EIP-712 signature for a delegate authorization request.
+///
+/// # Arguments
+///
+/// * `signature_str` - The hex-encoded signature (without 0x prefix)
+/// * `chain_id` - The chain ID for the EIP-712 domain
+/// * `payload` - The delegate request containing the data that was signed
+///
+/// # Returns
+///
+/// () on success, or a `KmsError` on failure.
+fn verify_delegate_authorization(
+    signature_str: &str,
+    chain_id: u64,
+    payload: &DelegateRequest,
+) -> KmsResult<()> {
+    let domain = eip712_domain! {
+        name: PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
+        version: EIP_712_DOMAIN_VERSION,
+        chain_id: chain_id,
+    };
+
+    let signature_bytes =
+        hex::decode(signature_str).map_err(|e| KmsError::Unauthorized(e.to_string()))?;
+
+    let signature =
+        Signature::from_raw(&signature_bytes).map_err(|e| KmsError::Unauthorized(e.to_string()))?;
+
+    let authorization = DelegateAuthorization {
+        ephemeralPubKey: strip_0x_prefix(&payload.ephemeral_pub_key).to_string(),
+        targetPubKey: strip_0x_prefix(&payload.target_pub_key).to_string(),
+    };
+
+    let hash = authorization.eip712_signing_hash(&domain);
+    signature
+        .recover_address_from_prehash(&hash)
+        .map_err(|e| KmsError::Unauthorized(e.to_string()))?;
+    //TODO: Verify that the recovered address is the same as the address of the Gateway
+    Ok(())
 }
