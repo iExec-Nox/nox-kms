@@ -11,7 +11,8 @@ use rand_core::OsRng;
 use tracing::{debug, info, warn};
 
 use crate::constants::{
-    G, KEY_FILE_SIZE, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME, PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
+    EIP_712_DOMAIN_VERSION, G, KEY_FILE_SIZE, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
+    PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
 };
 use crate::crypto::{
     generate_ec_key_pair, generate_sign_key, hex_to_point, hex_to_rsa_public_key,
@@ -219,7 +220,7 @@ impl KmsService {
     pub fn compute_public_key_proof(&self) -> KmsResult<String> {
         let domain = eip712_domain! {
             name: PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
-            version: "1",
+            version: EIP_712_DOMAIN_VERSION,
             chain_id: u64::from(self.chain_id),
         };
         let proof = PublicKeyProof {
@@ -240,7 +241,7 @@ impl KmsService {
     ) -> KmsResult<String> {
         let domain = eip712_domain! {
             name: PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
-            version: "1",
+            version: EIP_712_DOMAIN_VERSION,
             chain_id: u64::from(self.chain_id),
         };
         let proof = DelegateResponseProof {

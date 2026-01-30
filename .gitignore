@@ -27,3 +27,5 @@ target
 
 kms.key
 keystore_signer.json
+
+/tests
