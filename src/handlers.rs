@@ -128,12 +128,15 @@ pub async fn delegate(
 ) -> KmsResult<Json<DelegateResponse>> {
     let signature_str = headers
         .get(AUTHORIZATION)
-        .ok_or(KmsError::Authentication(
-            "Authorization header is required".to_string(),
-        ))?
+        .ok_or_else(|| KmsError::Authentication("Authorization header is required".to_string()))?
         .to_str()
         .map_err(|e| KmsError::Authentication(format!("Invalid Authorization header: {}", e)))?
-        .trim_start_matches("Bearer 0x");
+        .strip_prefix("Bearer 0x")
+        .ok_or_else(|| {
+            KmsError::Authentication(
+                "Expected format of authorization header: 'Bearer 0x<signature>'".to_string(),
+            )
+        })?;
 
     verify_delegate_authorization(signature_str, u64::from(kms_service.chain_id), &payload)?;
 
