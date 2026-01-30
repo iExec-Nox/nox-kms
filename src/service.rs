@@ -10,7 +10,9 @@ use k256::{
 use rand_core::OsRng;
 use tracing::{debug, info, warn};
 
-use crate::constants::{G, KEY_FILE_SIZE, PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME};
+use crate::constants::{
+    G, KEY_FILE_SIZE, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME, PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
+};
 use crate::crypto::{
     generate_ec_key_pair, generate_sign_key, hex_to_point, hex_to_rsa_public_key,
     rsa_encrypt_shared_secret,
@@ -22,6 +24,11 @@ sol! {
     #[derive(Debug)]
     struct PublicKeyProof{
         string publicKey;
+    }
+
+    #[derive(Debug)]
+    struct DelegateResponseProof {
+        string encryptedSharedSecret;
     }
 }
 
@@ -222,6 +229,27 @@ impl KmsService {
             .signer
             .sign_typed_data_sync(&proof, &domain)
             .map_err(|e| KmsError::Crypto(format!("Failed to sign PublicKeyProof: {}", e)))?
+            .as_bytes();
+
+        Ok(serialize_bytes(&signature))
+    }
+
+    pub fn compute_delegate_response_proof(
+        &self,
+        encrypted_shared_secret: &str,
+    ) -> KmsResult<String> {
+        let domain = eip712_domain! {
+            name: PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
+            version: "1",
+            chain_id: u64::from(self.chain_id),
+        };
+        let proof = DelegateResponseProof {
+            encryptedSharedSecret: encrypted_shared_secret.to_string(),
+        };
+        let signature = self
+            .signer
+            .sign_typed_data_sync(&proof, &domain)
+            .map_err(|e| KmsError::Crypto(format!("Failed to sign DelegateResponseProof: {}", e)))?
             .as_bytes();
 
         Ok(serialize_bytes(&signature))

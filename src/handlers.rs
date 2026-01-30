@@ -35,6 +35,7 @@ pub struct PublicKeyResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DelegateResponse {
     pub encrypted_shared_secret: String,
+    pub proof: String,
 }
 
 sol! {
@@ -153,6 +154,7 @@ pub async fn delegate(
         kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key)?;
     Ok(Json(DelegateResponse {
         encrypted_shared_secret: add_0x_prefix(&encrypted_shared_secret_hex),
+        proof: kms_service.compute_delegate_response_proof(&encrypted_shared_secret_hex)?,
     }))
 }
 
