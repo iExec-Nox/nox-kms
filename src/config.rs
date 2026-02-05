@@ -29,7 +29,7 @@ impl Config {
             .set_default("key_filename", "kms.key")?
             .set_default("keystore_filename", "keystore_signer.json")?
             .set_default("keystore_password", "")?
-            .set_default("chain_id", 1)?
+            .set_default("chain_id", 421614)?
             // Load environment variables (NOX_KMS_*)
             .add_source(
                 Environment::with_prefix("NOX_KMS")
