@@ -1,3 +1,4 @@
+use alloy_primitives::Address;
 use alloy_signer::Signature;
 use alloy_sol_types::{SolStruct, eip712_domain, sol};
 use axum::{
@@ -124,6 +125,7 @@ pub async fn get_public_key(
 ///   - RSA encryption failure
 pub async fn delegate(
     State(kms_service): State<KmsService>,
+    State(gateway_address): State<Address>,
     headers: HeaderMap,
     Json(payload): Json<DelegateRequest>,
 ) -> KmsResult<Json<DelegateResponse>> {
@@ -139,7 +141,12 @@ pub async fn delegate(
             )
         })?;
 
-    verify_delegate_authorization(signature_str, u64::from(kms_service.chain_id), &payload)?;
+    verify_delegate_authorization(
+        signature_str,
+        u64::from(kms_service.chain_id),
+        &payload,
+        gateway_address,
+    )?;
 
     let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
     let target_pub_key = strip_0x_prefix(&payload.target_pub_key);
@@ -177,6 +184,7 @@ fn verify_delegate_authorization(
     signature_str: &str,
     chain_id: u64,
     payload: &DelegateRequest,
+    gateway_address: Address,
 ) -> KmsResult<()> {
     let domain = eip712_domain! {
         name: PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
@@ -196,9 +204,15 @@ fn verify_delegate_authorization(
     };
 
     let hash = authorization.eip712_signing_hash(&domain);
-    signature
+    let recovered = signature
         .recover_address_from_prehash(&hash)
         .map_err(|e| KmsError::Unauthorized(e.to_string()))?;
-    //TODO: Verify that the recovered address is the same as the address of the Gateway
+
+    if recovered != gateway_address {
+        return Err(KmsError::Unauthorized(format!(
+            "signer {recovered} does not match gateway {gateway_address}"
+        )));
+    }
+
     Ok(())
 }

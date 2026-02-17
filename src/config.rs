@@ -7,18 +7,25 @@ use tracing::debug;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub chain: ChainConfig,
     pub server: ServerConfig,
     pub key_filename: PathBuf,
     pub keystore_filename: PathBuf,
     /// Keystore password (can be set via NOX_KMS_KEYSTORE_PASSWORD or NOX_KMS_KEYSTORE_PASSWORD_FILE)
     pub keystore_password: String,
-    pub chain_id: u32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ServerConfig {
     pub host: String,
     pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ChainConfig {
+    pub chain_id: u32,
+    pub nox_compute_contract: String,
+    pub rpc_url: String,
 }
 
 impl Config {
@@ -29,7 +36,12 @@ impl Config {
             .set_default("key_filename", "kms.key")?
             .set_default("keystore_filename", "keystore_signer.json")?
             .set_default("keystore_password", "")?
-            .set_default("chain_id", 421614)?
+            .set_default("chain.chain_id", 421614)?
+            .set_default(
+                "chain.nox_compute_contract",
+                "0x0000000000000000000000000000000000000000",
+            )?
+            .set_default("chain.rpc_url", "")?
             // Load environment variables (NOX_KMS_*)
             .add_source(
                 Environment::with_prefix("NOX_KMS")

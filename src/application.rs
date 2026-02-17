@@ -1,3 +1,6 @@
+use alloy_primitives::Address;
+use alloy_provider::ProviderBuilder;
+use alloy_sol_types::sol;
 use anyhow::{Context, Result};
 use axum::{
     Router,
@@ -18,6 +21,7 @@ use crate::service::KmsService;
 pub struct AppState {
     pub kms_service: KmsService,
     pub metrics_handle: PrometheusHandle,
+    pub gateway_address: Address,
 }
 
 impl FromRef<AppState> for KmsService {
@@ -32,6 +36,19 @@ impl FromRef<AppState> for PrometheusHandle {
     }
 }
 
+impl FromRef<AppState> for Address {
+    fn from_ref(state: &AppState) -> Self {
+        state.gateway_address
+    }
+}
+
+sol! {
+    #[sol(rpc)]
+    contract NoxCompute {
+        function gateway() external view returns (address);
+    }
+}
+
 pub struct Application {
     config: Config,
     state: AppState,
@@ -39,20 +56,42 @@ pub struct Application {
 }
 
 impl Application {
-    pub fn new(config: Config) -> Result<Self> {
+    pub async fn new(config: Config) -> Result<Self> {
         let kms_service = KmsService::load_or_generate(
             &config.key_filename,
             &config.keystore_filename,
             &config.keystore_password,
-            config.chain_id,
+            config.chain.chain_id,
         )
         .context("Failed to load or generate KMS keys")?;
+
+        let provider = ProviderBuilder::new()
+            .connect(&config.chain.rpc_url)
+            .await
+            .context("Failed to connect to RPC provider")?;
+
+        let contract_address: Address = config
+            .chain
+            .nox_compute_contract
+            .parse()
+            .context("Invalid NoxCompute contract address")?;
+
+        let contract = NoxCompute::new(contract_address, &provider);
+        let gateway_address = contract
+            .gateway()
+            .call()
+            .await
+            .context("Failed to fetch gateway address from NoxCompute contract")?;
+
+        info!("Gateway address: {gateway_address}");
+
         let (prometheus_layer, metrics_handle) = PrometheusMetricLayer::pair();
         Ok(Self {
             config,
             state: AppState {
                 kms_service,
                 metrics_handle,
+                gateway_address,
             },
             prometheus_layer,
         })
