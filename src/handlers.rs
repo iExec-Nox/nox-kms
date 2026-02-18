@@ -76,24 +76,6 @@ pub async fn health_check() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
-/// Get public key endpoint handler.
-///
-/// Returns the public key of the KMS service.
-///
-/// # Returns
-///
-/// JSON response containing:
-/// - `public_key`: The public key of the KMS service
-/// - `proof`: The proof of the public key (0x-prefixed signature)
-pub async fn get_public_key(
-    State(kms_service): State<KmsService>,
-) -> KmsResult<Json<PublicKeyResponse>> {
-    Ok(Json(PublicKeyResponse {
-        public_key: add_0x_prefix(&kms_service.public_key_to_hex()),
-        proof: kms_service.compute_public_key_proof()?,
-    }))
-}
-
 /// Delegate endpoint handler for ECIES shared secret computation.
 ///
 /// This endpoint implements the KMS-side of ECIES (Elliptic Curve Integrated Encryption Scheme)
