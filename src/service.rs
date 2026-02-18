@@ -12,7 +12,6 @@ use tracing::{debug, info, warn};
 
 use crate::constants::{
     EIP_712_DOMAIN_VERSION, G, KEY_FILE_SIZE, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
-    PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
 };
 use crate::crypto::{
     generate_ec_key_pair, generate_sign_key, hex_to_point, hex_to_rsa_public_key,
@@ -22,11 +21,6 @@ use crate::errors::{KmsError, KmsResult};
 use crate::utils::{serialize_bytes, truncate_hex};
 
 sol! {
-    #[derive(Debug)]
-    struct PublicKeyProof{
-        string publicKey;
-    }
-
     #[derive(Debug)]
     struct DelegateResponseProof {
         string encryptedSharedSecret;
@@ -83,7 +77,7 @@ impl KmsService {
 
         info!(
             "KMS ready - public key: {}, signer: {}",
-            service.public_key_to_hex(),
+            serialize_bytes(&service.public_key.to_bytes()),
             service.signer.address()
         );
 
@@ -210,29 +204,6 @@ impl KmsService {
         info!("Signer keystore saved to {:?}", keystore_file);
 
         Ok(())
-    }
-
-    pub fn public_key_to_hex(&self) -> String {
-        let bytes = &self.public_key.to_bytes();
-        hex::encode(bytes)
-    }
-
-    pub fn compute_public_key_proof(&self) -> KmsResult<String> {
-        let domain = eip712_domain! {
-            name: PROTOCOL_PUBLIC_KEY_EIP712_DOMAIN_NAME,
-            version: EIP_712_DOMAIN_VERSION,
-            chain_id: u64::from(self.chain_id),
-        };
-        let proof = PublicKeyProof {
-            publicKey: self.public_key_to_hex(),
-        };
-        let signature = self
-            .signer
-            .sign_typed_data_sync(&proof, &domain)
-            .map_err(|e| KmsError::Crypto(format!("Failed to sign PublicKeyProof: {}", e)))?
-            .as_bytes();
-
-        Ok(serialize_bytes(&signature))
     }
 
     pub fn compute_delegate_response_proof(
