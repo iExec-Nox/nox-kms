@@ -77,7 +77,7 @@ impl KmsService {
 
         info!(
             "KMS ready - public key: {}, signer: {}",
-            hex::encode(service.public_key.to_bytes()),
+            format!("0x{}", hex::encode(service.public_key.to_bytes())),
             service.signer.address()
         );
 
