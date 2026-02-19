@@ -20,7 +20,7 @@ impl IntoResponse for KmsError {
         warn!("Request failed: {}", self);
         let status = match &self {
             KmsError::Authentication(_) => StatusCode::UNAUTHORIZED,
-            KmsError::Unauthorized(_) => StatusCode::BAD_REQUEST,
+            KmsError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             KmsError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
             KmsError::Crypto(_) => StatusCode::BAD_REQUEST,
         };
