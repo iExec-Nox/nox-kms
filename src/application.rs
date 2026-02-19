@@ -44,7 +44,7 @@ impl FromRef<AppState> for Address {
 
 sol! {
     #[sol(rpc)]
-    contract NoxCompute {
+    interface INoxCompute {
         function gateway() external view returns (address);
     }
 }
@@ -70,13 +70,7 @@ impl Application {
             .await
             .context("Failed to connect to RPC provider")?;
 
-        let contract_address: Address = config
-            .chain
-            .nox_compute_contract
-            .parse()
-            .context("Invalid NoxCompute contract address")?;
-
-        let contract = NoxCompute::new(contract_address, &provider);
+        let contract = INoxCompute::new(config.chain.nox_compute_contract, &provider);
         let gateway_address = contract
             .gateway()
             .call()

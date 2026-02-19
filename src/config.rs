@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use alloy_primitives::Address;
 use config::{Config as ConfigBuilder, ConfigError, Environment};
 use config_secret::EnvironmentSecretFile;
 use serde::Deserialize;
@@ -24,7 +25,7 @@ pub struct ServerConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ChainConfig {
     pub chain_id: u32,
-    pub nox_compute_contract: String,
+    pub nox_compute_contract: Address,
     pub rpc_url: String,
 }
 
@@ -41,7 +42,7 @@ impl Config {
                 "chain.nox_compute_contract",
                 "0x0000000000000000000000000000000000000000",
             )?
-            .set_default("chain.rpc_url", "")?
+            .set_default("chain.rpc_url", "http://localhost:8545")?
             // Load environment variables (NOX_KMS_*)
             .add_source(
                 Environment::with_prefix("NOX_KMS")
