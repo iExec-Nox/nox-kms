@@ -9,8 +9,6 @@ pub enum KmsError {
     Crypto(String),
     #[error("Storage error: {0}")]
     Storage(String),
-    #[error("Authentication error: {0}")]
-    Authentication(String),
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
 }
@@ -19,7 +17,6 @@ impl IntoResponse for KmsError {
     fn into_response(self) -> axum::response::Response {
         warn!("Request failed: {}", self);
         let status = match &self {
-            KmsError::Authentication(_) => StatusCode::UNAUTHORIZED,
             KmsError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             KmsError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
             KmsError::Crypto(_) => StatusCode::BAD_REQUEST,
