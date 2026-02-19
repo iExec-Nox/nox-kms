@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
     debug!("Configuration loaded: {:?}", config);
 
     info!("Starting KMS on {}", config.bind_addr());
-    let app = Application::new(config)?;
+    let app = Application::new(config).await?;
     app.run().await?;
 
     Ok(())
