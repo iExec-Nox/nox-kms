@@ -9,3 +9,5 @@ target
 
 kms.key
 keystore_signer.json
+
+docker-compose.yaml
