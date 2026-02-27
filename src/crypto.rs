@@ -1,12 +1,14 @@
 use alloy_signer_local::PrivateKeySigner;
 use k256::{
-    ProjectivePoint, Scalar as F,
-    elliptic_curve::{Field, rand_core::OsRng, sec1::FromEncodedPoint},
+    FieldBytes, ProjectivePoint, Scalar as F,
+    elliptic_curve::{Field, PrimeField, rand_core::OsRng, sec1::FromEncodedPoint},
 };
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};
 use sha2::Sha256;
 
-use crate::constants::{EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN, G, MIN_RSA_KEY_HEX_LEN};
+use crate::constants::{
+    EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN, G, MIN_RSA_KEY_HEX_LEN, SECP256K1_PRIVATE_KEY_SIZE,
+};
 use crate::errors::{KmsError, KmsResult};
 
 pub fn generate_ec_key_pair() -> (F, ProjectivePoint) {
@@ -15,9 +17,75 @@ pub fn generate_ec_key_pair() -> (F, ProjectivePoint) {
     (private_key, public_key)
 }
 
+/// Imports an EC key pair from a hex-encoded private key (with 0x prefix).
+/// Returns the private and public key, just like generate_ec_key_pair().
+pub fn import_ec_key_pair(hex_key: &str) -> KmsResult<(F, ProjectivePoint)> {
+    // Remove 0x prefix if present
+    let hex_clean = hex_key.strip_prefix("0x").unwrap_or(hex_key);
+
+    // Decode hex to bytes (should be SECP256K1_PRIVATE_KEY_SIZE bytes = 64 hex chars)
+    let bytes = hex::decode(hex_clean)
+        .map_err(|e| KmsError::Crypto(format!("Invalid hex string in NOX_KMS_ECC_KEY: {}", e)))?;
+
+    if bytes.len() != SECP256K1_PRIVATE_KEY_SIZE {
+        return Err(KmsError::Crypto(format!(
+            "Invalid private key size in NOX_KMS_ECC_KEY: expected {} bytes (64 hex chars), got {} bytes",
+            SECP256K1_PRIVATE_KEY_SIZE,
+            bytes.len()
+        )));
+    }
+
+    // Convert bytes to Scalar using from_repr which validates the scalar is in valid range
+    let mut bytes_array = [0u8; SECP256K1_PRIVATE_KEY_SIZE];
+    bytes_array.copy_from_slice(&bytes);
+    let field_bytes = FieldBytes::from(bytes_array);
+    let private_key = F::from_repr(field_bytes).into_option().ok_or_else(|| {
+        KmsError::Crypto(
+            "Invalid private key in NOX_KMS_ECC_KEY: value must be less than curve order"
+                .to_string(),
+        )
+    })?;
+
+    // Compute public key from private key
+    let public_key = G * private_key;
+
+    Ok((private_key, public_key))
+}
+
 /// Generates a new random signing key
 pub fn generate_sign_key() -> PrivateKeySigner {
     PrivateKeySigner::random()
+}
+
+/// Imports a wallet signing key from a hex-encoded private key (with 0x prefix).
+/// Returns the PrivateKeySigner, just like generate_sign_key().
+pub fn import_wallet_key(hex_key: &str) -> KmsResult<PrivateKeySigner> {
+    // Remove 0x prefix if present
+    let hex_clean = hex_key.strip_prefix("0x").unwrap_or(hex_key);
+
+    // Decode hex to bytes (should be SECP256K1_PRIVATE_KEY_SIZE bytes = 64 hex chars)
+    let bytes = hex::decode(hex_clean).map_err(|e| {
+        KmsError::Crypto(format!("Invalid hex string in NOX_KMS_WALLET_KEY: {}", e))
+    })?;
+
+    if bytes.len() != SECP256K1_PRIVATE_KEY_SIZE {
+        return Err(KmsError::Crypto(format!(
+            "Invalid private key size in NOX_KMS_WALLET_KEY: expected {} bytes (64 hex chars), got {} bytes",
+            SECP256K1_PRIVATE_KEY_SIZE,
+            bytes.len()
+        )));
+    }
+
+    // Convert bytes to array and create PrivateKeySigner
+    let mut bytes_array = [0u8; SECP256K1_PRIVATE_KEY_SIZE];
+    bytes_array.copy_from_slice(&bytes);
+
+    // Create PrivateKeySigner from bytes (from_bytes expects &B256)
+    let signer = PrivateKeySigner::from_bytes(&bytes_array.into()).map_err(|e| {
+        KmsError::Crypto(format!("Invalid private key in NOX_KMS_WALLET_KEY: {}", e))
+    })?;
+
+    Ok(signer)
 }
 
 /// Convert a hex string (without 0x prefix) to a public key (ProjectivePoint)

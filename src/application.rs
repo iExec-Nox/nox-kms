@@ -62,6 +62,8 @@ impl Application {
             &config.keystore_filename,
             &config.keystore_password,
             config.chain.chain_id,
+            &config.ecc_key,
+            &config.wallet_key,
         )
         .context("Failed to load or generate KMS keys")?;
 

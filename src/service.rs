@@ -12,10 +12,11 @@ use tracing::{debug, info, warn};
 
 use crate::constants::{
     EIP_712_DOMAIN_VERSION, G, KEY_FILE_SIZE, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
+    SECP256K1_PRIVATE_KEY_SIZE,
 };
 use crate::crypto::{
     generate_ec_key_pair, generate_sign_key, hex_to_point, hex_to_rsa_public_key,
-    rsa_encrypt_shared_secret,
+    import_ec_key_pair, import_wallet_key, rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
 use crate::utils::{serialize_bytes, truncate_hex};
@@ -42,11 +43,21 @@ impl KmsService {
         keystore_file: &Path,
         keystore_password: &str,
         chain_id: u32,
+        ecc_key: &str,
+        wallet_key: &str,
     ) -> KmsResult<Self> {
         // Load or generate EC keys
         if !key_file.exists() {
-            warn!("Key file {:?} not found, generating new EC keys", key_file);
-            let keys = generate_ec_key_pair();
+            let keys = if ecc_key.is_empty() {
+                warn!("Key file {:?} not found, generating new EC keys", key_file);
+                generate_ec_key_pair()
+            } else {
+                warn!(
+                    "Key file {:?} not found, importing EC keys from environment variable",
+                    key_file
+                );
+                import_ec_key_pair(ecc_key)?
+            };
             Self::save_ec_keys_to_key_file(&keys, key_file)?;
         }
         #[cfg(unix)]
@@ -56,11 +67,19 @@ impl KmsService {
 
         // Load or generate signer
         if !keystore_file.exists() {
-            warn!(
-                "Keystore file {:?} not found, generating new signer",
-                keystore_file
-            );
-            let signer = generate_sign_key();
+            let signer = if wallet_key.is_empty() {
+                warn!(
+                    "Keystore file {:?} not found, generating new signer",
+                    keystore_file
+                );
+                generate_sign_key()
+            } else {
+                warn!(
+                    "Keystore file {:?} not found, importing signer from environment variable",
+                    keystore_file
+                );
+                import_wallet_key(wallet_key)?
+            };
             Self::save_signer_to_keystore(&signer, keystore_file, keystore_password)?;
         }
         #[cfg(unix)]
@@ -115,8 +134,8 @@ impl KmsService {
         }
 
         // Read private key (bytes 0-31)
-        let mut private_key_bytes = [0u8; 32];
-        private_key_bytes.copy_from_slice(&data[0..32]);
+        let mut private_key_bytes = [0u8; SECP256K1_PRIVATE_KEY_SIZE];
+        private_key_bytes.copy_from_slice(&data[0..SECP256K1_PRIVATE_KEY_SIZE]);
         let uint = U256::from_be_slice(&private_key_bytes);
         let private_key = F::from_uint_unchecked(uint);
 
