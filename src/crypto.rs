@@ -1,7 +1,7 @@
 use alloy_signer_local::PrivateKeySigner;
 use k256::{
     FieldBytes, ProjectivePoint, Scalar as F,
-    elliptic_curve::{Field, PrimeField, rand_core::OsRng, sec1::FromEncodedPoint},
+    elliptic_curve::{PrimeField, rand_core::OsRng, sec1::FromEncodedPoint},
 };
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};
 use sha2::Sha256;
@@ -10,12 +10,6 @@ use crate::constants::{
     EXPECTED_EPHEMERAL_PUB_KEY_HEX_LEN, G, MIN_RSA_KEY_HEX_LEN, SECP256K1_PRIVATE_KEY_SIZE,
 };
 use crate::errors::{KmsError, KmsResult};
-
-pub fn generate_ec_key_pair() -> (F, ProjectivePoint) {
-    let private_key = F::random(&mut OsRng);
-    let public_key = G * private_key;
-    (private_key, public_key)
-}
 
 /// Imports an EC key pair from a hex-encoded private key (with 0x prefix).
 /// Returns the private and public key, just like generate_ec_key_pair().
@@ -50,11 +44,6 @@ pub fn import_ec_key_pair(hex_key: &str) -> KmsResult<(F, ProjectivePoint)> {
     let public_key = G * private_key;
 
     Ok((private_key, public_key))
-}
-
-/// Generates a new random signing key
-pub fn generate_sign_key() -> PrivateKeySigner {
-    PrivateKeySigner::random()
 }
 
 /// Imports a wallet signing key from a hex-encoded private key (with 0x prefix).
