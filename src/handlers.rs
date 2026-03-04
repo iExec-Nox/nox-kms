@@ -1,4 +1,4 @@
-use alloy_primitives::Address;
+use alloy_primitives::{Address, hex};
 use alloy_signer::Signature;
 use alloy_sol_types::{SolStruct, eip712_domain, sol};
 use axum::{

@@ -2579,7 +2579,6 @@ dependencies = [
  "chrono",
  "config",
  "config-secret",
- "hex",
  "k256",
  "metrics-exporter-prometheus",
  "rand_core 0.6.4",

@@ -1,3 +1,4 @@
+use alloy_primitives::hex;
 use alloy_signer_local::PrivateKeySigner;
 use k256::{
     FieldBytes, ProjectivePoint, Scalar as F,
