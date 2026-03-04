@@ -87,7 +87,7 @@ impl KmsService {
 
     /// Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
     ///
-    /// See [`handlers::delegate`] for full protocol details and input/output formats.
+    /// See [`super::handlers::delegate`] for full protocol details and input/output formats.
     ///
     /// # Arguments
     ///
