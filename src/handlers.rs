@@ -181,8 +181,8 @@ fn verify_delegate_authorization(
         Signature::from_raw(&signature_bytes).map_err(|e| KmsError::Unauthorized(e.to_string()))?;
 
     let authorization = DelegateAuthorization {
-        ephemeralPubKey: strip_0x_prefix(&payload.ephemeral_pub_key).to_string(),
-        targetPubKey: strip_0x_prefix(&payload.target_pub_key).to_string(),
+        ephemeralPubKey: payload.ephemeral_pub_key.clone(),
+        targetPubKey: payload.target_pub_key.clone(),
     };
 
     let hash = authorization.eip712_signing_hash(&domain);
