@@ -1,4 +1,4 @@
-use alloy_primitives::hex::encode_prefixed;
+use alloy_primitives::hex;
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{eip712_domain, sol};
@@ -58,7 +58,7 @@ impl KmsService {
 
         info!(
             "KMS ready - public key: {}, signer: {}",
-            encode_prefixed(service.public_key.to_bytes()),
+            hex::encode_prefixed(service.public_key.to_bytes()),
             service.signer.address()
         );
 
@@ -83,7 +83,7 @@ impl KmsService {
             .map_err(|e| KmsError::Crypto(format!("Failed to sign DelegateResponseProof: {}", e)))?
             .as_bytes();
 
-        Ok(encode_prefixed(signature))
+        Ok(hex::encode_prefixed(signature))
     }
 
     /// Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
