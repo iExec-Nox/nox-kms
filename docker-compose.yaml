@@ -10,10 +10,5 @@ services:
       - NOX_KMS_ECC_KEY=${NOX_ECC_KEY}
       - RUST_LOG=info
     ports:
-      - "9000:9000"
-    volumes:
-      - nox-kms-data:/data
+      - "9204:9000"
     restart: unless-stopped
-
-volumes:
-  nox-kms-data:
