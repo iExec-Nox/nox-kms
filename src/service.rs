@@ -29,7 +29,7 @@ pub struct KmsService {
 
 impl KmsService {
     /// Loads keys from environment variables
-    pub fn load_or_generate(chain_id: u32, ecc_key: &str, wallet_key: &str) -> KmsResult<Self> {
+    pub fn load_keys(chain_id: u32, ecc_key: &str, wallet_key: &str) -> KmsResult<Self> {
         // Load EC keys from environment variable
         if ecc_key.is_empty() {
             return Err(KmsError::Crypto(

@@ -57,7 +57,7 @@ pub struct Application {
 
 impl Application {
     pub async fn new(config: Config) -> Result<Self> {
-        let kms_service = KmsService::load_or_generate(
+        let kms_service = KmsService::load_keys(
             config.chain.chain_id,
             &config.ecc_key,
             &config.wallet_key,
