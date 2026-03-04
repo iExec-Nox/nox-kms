@@ -3,7 +3,7 @@ services:
     image: docker-regis.iex.ec/nox-kms:${NOX_KMS_VERSION}
     container_name: nox-kms
     environment:
-      - NOX_KMS_CHAIN_ID=${NOX_CHAIN_ID}
+      - NOX_KMS_CHAIN__CHAIN_ID=${NOX_CHAIN_ID}
       - NOX_KMS_CHAIN__RPC_URL=${NOX_RPC_URL}
       - NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT=${NOX_COMPUTE_CONTRACT}
       - NOX_KMS_WALLET_KEY=${NOX_WALLET_KEY}
