@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use alloy_primitives::Address;
 use config::{Config as ConfigBuilder, ConfigError, Environment};
 use config_secret::EnvironmentSecretFile;
@@ -10,10 +8,8 @@ use tracing::debug;
 pub struct Config {
     pub chain: ChainConfig,
     pub server: ServerConfig,
-    pub key_filename: PathBuf,
-    pub keystore_filename: PathBuf,
-    /// Keystore password (can be set via NOX_KMS_KEYSTORE_PASSWORD or NOX_KMS_KEYSTORE_PASSWORD_FILE)
-    pub keystore_password: String,
+    pub ecc_key: String,
+    pub wallet_key: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -34,9 +30,8 @@ impl Config {
         let config = ConfigBuilder::builder()
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 9000)?
-            .set_default("key_filename", "kms.key")?
-            .set_default("keystore_filename", "keystore_signer.json")?
-            .set_default("keystore_password", "")?
+            .set_default("ecc_key", "")?
+            .set_default("wallet_key", "")?
             .set_default("chain.chain_id", 421614)?
             .set_default(
                 "chain.nox_compute_contract",

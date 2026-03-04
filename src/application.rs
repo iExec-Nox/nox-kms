@@ -57,13 +57,9 @@ pub struct Application {
 
 impl Application {
     pub async fn new(config: Config) -> Result<Self> {
-        let kms_service = KmsService::load_or_generate(
-            &config.key_filename,
-            &config.keystore_filename,
-            &config.keystore_password,
-            config.chain.chain_id,
-        )
-        .context("Failed to load or generate KMS keys")?;
+        let kms_service =
+            KmsService::load_keys(config.chain.chain_id, &config.ecc_key, &config.wallet_key)
+                .context("Failed to load KMS keys from environment variables")?;
 
         let provider = ProviderBuilder::new()
             .connect(&config.chain.rpc_url)
