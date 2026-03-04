@@ -12,6 +12,7 @@ use crate::constants::{
 use crate::errors::{KmsError, KmsResult};
 
 /// Imports an EC key pair from a hex-encoded private key (with 0x prefix).
+///
 /// Returns the private and public key, just like generate_ec_key_pair().
 pub fn import_ec_key_pair(hex_key: &str) -> KmsResult<(F, ProjectivePoint)> {
     // Remove 0x prefix if present
@@ -47,6 +48,7 @@ pub fn import_ec_key_pair(hex_key: &str) -> KmsResult<(F, ProjectivePoint)> {
 }
 
 /// Imports a wallet signing key from a hex-encoded private key (with 0x prefix).
+///
 /// Returns the PrivateKeySigner, just like generate_sign_key().
 pub fn import_wallet_key(hex_key: &str) -> KmsResult<PrivateKeySigner> {
     // Remove 0x prefix if present
@@ -77,8 +79,9 @@ pub fn import_wallet_key(hex_key: &str) -> KmsResult<PrivateKeySigner> {
     Ok(signer)
 }
 
-/// Convert a hex string (without 0x prefix) to a public key (ProjectivePoint)
-/// Returns the public key or an error if the hex is invalid
+/// Convert a hex string (without 0x prefix) to a public key (ProjectivePoint).
+///
+/// Returns the public key or an error if the hex is invalid.
 pub fn hex_to_point(hex: &str) -> KmsResult<ProjectivePoint> {
     let bytes =
         hex::decode(hex).map_err(|e| KmsError::Crypto(format!("Invalid hex string: {}", e)))?;
@@ -88,8 +91,9 @@ pub fn hex_to_point(hex: &str) -> KmsResult<ProjectivePoint> {
         .ok_or_else(|| KmsError::Crypto("Invalid public key point".to_string()))
 }
 
-/// Convert a hex string (without 0x prefix) to an RSA public key
-/// Returns the RSA public key or an error if the hex is invalid
+/// Convert a hex string (without 0x prefix) to an RSA public key.
+///
+/// Returns the RSA public key or an error if the hex is invalid.
 pub fn hex_to_rsa_public_key(hex_spki: &str) -> KmsResult<RsaPublicKey> {
     let der_bytes = hex::decode(hex_spki)
         .map_err(|e| KmsError::Crypto(format!("Invalid hex encoding: {}", e)))?;
@@ -100,6 +104,7 @@ pub fn hex_to_rsa_public_key(hex_spki: &str) -> KmsResult<RsaPublicKey> {
 /// Encrypt a shared secret (EC point's X-coordinate) with an RSA public key.
 ///
 /// Extracts the X-coordinate and encrypts it using RSA-OAEP with SHA-256.
+///
 /// Returns the encrypted result as a hex string.
 pub fn rsa_encrypt_shared_secret(
     shared_secret: &ProjectivePoint,
@@ -115,6 +120,8 @@ pub fn rsa_encrypt_shared_secret(
 }
 
 /// Extract X-coordinate from an EC point (32 bytes).
+///
+/// Returns the X-coordinate as a byte vector.
 pub fn get_x_coordinate(p: &ProjectivePoint) -> KmsResult<Vec<u8>> {
     let enc = k256::EncodedPoint::from(p.to_affine());
     match enc.x() {
