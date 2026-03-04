@@ -1,4 +1,4 @@
-use alloy_primitives::Address;
+use alloy_primitives::{Address, hex};
 use alloy_signer::Signature;
 use alloy_sol_types::{SolStruct, eip712_domain, sol};
 use axum::{
@@ -141,9 +141,10 @@ pub async fn delegate(
 
     let encrypted_shared_secret_hex =
         kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key)?;
+    let prefixed_encrypted_shared_secret = add_0x_prefix(&encrypted_shared_secret_hex);
     Ok(Json(DelegateResponse {
-        encrypted_shared_secret: add_0x_prefix(&encrypted_shared_secret_hex),
-        proof: kms_service.compute_delegate_response_proof(&encrypted_shared_secret_hex)?,
+        encrypted_shared_secret: prefixed_encrypted_shared_secret.clone(),
+        proof: kms_service.compute_delegate_response_proof(&prefixed_encrypted_shared_secret)?,
     }))
 }
 
@@ -181,8 +182,8 @@ fn verify_delegate_authorization(
         Signature::from_raw(&signature_bytes).map_err(|e| KmsError::Unauthorized(e.to_string()))?;
 
     let authorization = DelegateAuthorization {
-        ephemeralPubKey: strip_0x_prefix(&payload.ephemeral_pub_key).to_string(),
-        targetPubKey: strip_0x_prefix(&payload.target_pub_key).to_string(),
+        ephemeralPubKey: payload.ephemeral_pub_key.clone(),
+        targetPubKey: payload.target_pub_key.clone(),
     };
 
     let hash = authorization.eip712_signing_hash(&domain);

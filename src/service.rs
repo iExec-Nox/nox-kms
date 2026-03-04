@@ -1,3 +1,4 @@
+use alloy_primitives::hex;
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{eip712_domain, sol};
@@ -10,7 +11,7 @@ use crate::crypto::{
     rsa_encrypt_shared_secret,
 };
 use crate::errors::{KmsError, KmsResult};
-use crate::utils::{serialize_bytes, truncate_hex};
+use crate::utils::truncate_hex;
 
 sol! {
     #[derive(Debug)]
@@ -57,7 +58,7 @@ impl KmsService {
 
         info!(
             "KMS ready - public key: {}, signer: {}",
-            serialize_bytes(&service.public_key.to_bytes()),
+            hex::encode_prefixed(service.public_key.to_bytes()),
             service.signer.address()
         );
 
@@ -82,7 +83,7 @@ impl KmsService {
             .map_err(|e| KmsError::Crypto(format!("Failed to sign DelegateResponseProof: {}", e)))?
             .as_bytes();
 
-        Ok(serialize_bytes(&signature))
+        Ok(hex::encode_prefixed(signature))
     }
 
     /// Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
