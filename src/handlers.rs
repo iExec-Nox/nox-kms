@@ -141,9 +141,10 @@ pub async fn delegate(
 
     let encrypted_shared_secret_hex =
         kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key)?;
+    let prefixed_encrypted_shared_secret = add_0x_prefix(&encrypted_shared_secret_hex);
     Ok(Json(DelegateResponse {
-        encrypted_shared_secret: add_0x_prefix(&encrypted_shared_secret_hex),
-        proof: kms_service.compute_delegate_response_proof(&encrypted_shared_secret_hex)?,
+        encrypted_shared_secret: prefixed_encrypted_shared_secret.clone(),
+        proof: kms_service.compute_delegate_response_proof(&prefixed_encrypted_shared_secret)?,
     }))
 }
 
