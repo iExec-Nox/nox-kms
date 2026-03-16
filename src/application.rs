@@ -1,7 +1,7 @@
 use alloy_primitives::Address;
 use alloy_provider::ProviderBuilder;
 use alloy_sol_types::sol;
-use anyhow::{Context, Result};
+use anyhow::{Context, Error, Result};
 use axum::{
     Router,
     extract::FromRef,
@@ -72,6 +72,12 @@ impl Application {
             .call()
             .await
             .context("Failed to fetch gateway address from NoxCompute contract")?;
+        if gateway_address == Address::ZERO {
+            return Err(Error::msg(format!(
+                "NoxCompute contract call to gateway() returned {}",
+                Address::ZERO
+            )));
+        }
 
         info!("Gateway address: {gateway_address}");
 
