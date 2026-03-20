@@ -7,7 +7,9 @@ use axum::{
     extract::FromRef,
     routing::{get, post},
 };
-use axum_prometheus::PrometheusMetricLayer;
+use axum_prometheus::{
+    Handle, MakeDefaultHandle, PrometheusMetricLayer, PrometheusMetricLayerBuilder,
+};
 use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
@@ -16,6 +18,9 @@ use tracing::{debug, info, warn};
 use crate::config::Config;
 use crate::handlers;
 use crate::service::KmsService;
+
+const ENDPOINT_VERSION: &str = "/v0";
+const VERSIONED_PATHS: &str = "/v0/*path";
 
 #[derive(Clone)]
 pub struct AppState {
@@ -81,7 +86,10 @@ impl Application {
 
         info!("Gateway address: {gateway_address}");
 
-        let (prometheus_layer, metrics_handle) = PrometheusMetricLayer::pair();
+        let prometheus_layer = PrometheusMetricLayerBuilder::new()
+            .with_allow_patterns(&["/", "/health", "/metrics", VERSIONED_PATHS])
+            .build();
+        let metrics_handle = Handle::make_default_handle(Handle::default());
         Ok(Self {
             config,
             state: AppState {
@@ -96,13 +104,19 @@ impl Application {
     fn build_router(&self) -> Router {
         debug!("Building application router");
 
+        let versioned_route = Router::new().route("/delegate", post(handlers::delegate));
+
         Router::new()
             // Root endpoint
             .route("/", get(handlers::root))
             // Health check endpoint
             .route("/health", get(handlers::health_check))
+            // Metrics endpoint
             .route("/metrics", get(handlers::metrics))
-            .route("/v0/delegate", post(handlers::delegate))
+            // Functionality endpoints
+            .nest(ENDPOINT_VERSION, versioned_route)
+            // Fallback handler for non-existing routes
+            .fallback(handlers::not_found)
             .with_state(self.state.clone())
             .layer(TraceLayer::new_for_http())
             .layer(self.prometheus_layer.clone())

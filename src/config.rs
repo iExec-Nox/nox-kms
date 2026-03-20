@@ -28,7 +28,7 @@ pub struct ChainConfig {
 impl Config {
     pub fn load() -> Result<Self, ConfigError> {
         let config = ConfigBuilder::builder()
-            .set_default("server.host", "0.0.0.0")?
+            .set_default("server.host", "127.0.0.1")?
             .set_default("server.port", 9000)?
             .set_default("ecc_key", "")?
             .set_default("wallet_key", "")?
