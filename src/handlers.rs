@@ -4,7 +4,11 @@ use alloy_sol_types::{SolStruct, eip712_domain, sol};
 use axum::{
     Json,
     extract::State,
-    http::header::{AUTHORIZATION, HeaderMap},
+    http::{
+        StatusCode, Uri,
+        header::{AUTHORIZATION, HeaderMap},
+    },
+    response::IntoResponse,
 };
 use chrono::Utc;
 use metrics_exporter_prometheus::PrometheusHandle;
@@ -77,6 +81,24 @@ pub async fn health_check() -> Json<Value> {
     Json(json!({ "status": "ok" }))
 }
 
+/// Metrics endpoint handler.
+///
+/// Returns the Prometheus metrics in the text format.
+/// This endpoint is used for monitoring and metrics collection.
+pub async fn metrics(State(metrics_handle): State<PrometheusHandle>) -> String {
+    metrics_handle.render()
+}
+
+/// Fallback handler for non-existing routes.
+///
+/// Returns 404 NOT_FOUND to indicate the requested route does not exist.
+pub async fn not_found(uri: Uri) -> impl IntoResponse {
+    (
+        StatusCode::NOT_FOUND,
+        Json(json!({ "error":format!("Route not found {}", uri.path()) })),
+    )
+}
+
 /// Delegate endpoint handler for ECIES shared secret computation.
 ///
 /// This endpoint implements the KMS-side of ECIES (Elliptic Curve Integrated Encryption Scheme)
@@ -146,10 +168,6 @@ pub async fn delegate(
         encrypted_shared_secret: prefixed_encrypted_shared_secret.clone(),
         proof: kms_service.compute_delegate_response_proof(&prefixed_encrypted_shared_secret)?,
     }))
-}
-
-pub async fn metrics(State(metrics_handle): State<PrometheusHandle>) -> String {
-    metrics_handle.render()
 }
 
 /// Verifies the EIP-712 signature for a delegate authorization request.
