@@ -50,7 +50,7 @@ jobs:
   build-oci-image:
     name: Build OCI image
     needs: prepare
-    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@docker-build-v3.1.2
+    uses: iExecBlockchainComputing/github-actions-workflows/.github/workflows/docker-build.yml@fix/aquasec-trivy-v0.35.0
     with:
       image-name: docker-regis.iex.ec/nox-kms
       image-tag: ${{ needs.prepare.outputs.image_tag }}
