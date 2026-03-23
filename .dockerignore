@@ -11,3 +11,4 @@ kms.key
 keystore_signer.json
 
 docker-compose.yaml
+about.*
