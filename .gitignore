@@ -29,3 +29,6 @@ kms.key
 keystore_signer.json
 
 /tests
+
+# Cargo about.html, for now we don't publish / maintain it, but mainly check unexpected licenses
+about.html
