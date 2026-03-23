@@ -20,7 +20,7 @@ use crate::handlers;
 use crate::service::KmsService;
 
 const ENDPOINT_VERSION: &str = "/v0";
-const VERSIONED_PATHS: &str = "/v0/*path";
+const VERSIONED_PATHS: &str = "/v0/{*path}";
 
 #[derive(Clone)]
 pub struct AppState {
