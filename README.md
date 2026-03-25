@@ -14,13 +14,9 @@ Nox KMS provides secure cryptographic operations for key exchange within the Nox
 
 ### How it works
 
-**Encryption (performed by nox-handle-gateway):**
+**Encryption:** Performed by the [nox-handle-gateway](https://github.com/iExec-Nox/nox-handle-gateway), which retrieves the KMS public key and encrypts data using ECIES.
 
-1. The gateway retrieves the KMS public key from the blockchain
-2. It generates an ephemeral EC key pair and computes the ECDH shared secret: `SharedSecret = EphemeralPubKey * KMS_PublicKey`
-3. The data is encrypted using this shared secret, and the ephemeral public key is stored alongside the ciphertext
-
-**Decryption delegation (performed by this KMS):**
+**Decryption delegation:**
 
 When an authorized party needs to decrypt, they request delegation through the gateway :
 
@@ -148,7 +144,6 @@ Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
 | ------ | ----------- |
 | `400 Bad Request` | Invalid key format, size, or encoding |
 | `401 Unauthorized` | Missing or invalid authorization signature |
-| `404 Not Found` | Route not found |
 
 **EIP-712 Domain (for authorization signature):**
 
