@@ -1,4 +1,4 @@
-# Nox · nox-kms
+# Nox KMS
 
 [![License](https://img.shields.io/badge/license-BUSL--1.1-blue)](./LICENSE) [![Docs](https://img.shields.io/badge/docs-nox--protocol-purple)](https://docs.iex.ec) [![Discord](https://img.shields.io/badge/chat-Discord-5865F2)](https://discord.com/invite/5TewNUnJHN) [![Ship](https://img.shields.io/github/v/tag/iExec-Nox/nox-kms?label=ship)](https://github.com/iExec-Nox/nox-kms/releases)
 
@@ -6,7 +6,7 @@
 
 ## Table of Contents
 
-- [Nox · nox-kms](#nox--nox-kms)
+- [Nox KMS](#nox-kms)
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
   - [Prerequisites](#prerequisites)
