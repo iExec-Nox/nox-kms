@@ -1,49 +1,76 @@
-# Nox KMS
+# Nox · nox-kms
 
-A Key Management Service implementing ECIES (Elliptic Curve Integrated Encryption Scheme) with RSA-wrapped shared secret delegation for the Nox Protocol.
+[![License](https://img.shields.io/badge/license-BUSL--1.1-blue)](./LICENSE) [![Docs](https://img.shields.io/badge/docs-nox--protocol-purple)](https://docs.iex.ec) [![Discord](https://img.shields.io/badge/chat-Discord-5865F2)](https://discord.com/invite/5TewNUnJHN) [![Ship](https://img.shields.io/github/v/tag/iExec-Nox/nox-kms?label=ship)](https://github.com/iExec-Nox/nox-kms/releases)
 
-## Description
+> Key Management Service for ECIES delegation in the Nox Protocol.
 
-Nox KMS provides secure cryptographic operations for key exchange within the Nox Protocol ecosystem. The service:
+## Table of Contents
 
-- Computes ECDH shared secrets using secp256k1 elliptic curve cryptography
-- Encrypts the shared secret's X-coordinate using RSA-OAEP (SHA-256) for secure delegation
-- Verifies request authorization via EIP-712 typed signatures
-- Integrates with blockchain smart contracts to fetch the authorized gateway address
-- Exposes Prometheus metrics for monitoring
+- [Nox · nox-kms](#nox--nox-kms)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [Prerequisites](#prerequisites)
+  - [Getting Started](#getting-started)
+  - [Environment Variables](#environment-variables)
+  - [API Reference](#api-reference)
+    - [Service Endpoints](#service-endpoints)
+      - [`GET /`](#get-)
+      - [`GET /health`](#get-health)
+      - [`GET /metrics`](#get-metrics)
+    - [Cryptographic Endpoints](#cryptographic-endpoints)
+      - [`POST /v0/delegate`](#post-v0delegate)
+  - [Related Repositories](#related-repositories)
+  - [License](#license)
 
-### How it works
+---
 
-**Encryption:** Performed by the [nox-handle-gateway](https://github.com/iExec-Nox/nox-handle-gateway), which retrieves the KMS public key and encrypts data using ECIES.
+## Overview
 
-**Decryption delegation:**
+The KMS is the cryptographic core of the Nox Protocol. It holds the EC private key used to derive ECDH shared secrets and never exposes it. All encryption happens in the [nox-handle-gateway](https://github.com/iExec-Nox/nox-handle-gateway); the KMS only performs delegation for authorized decryption requests.
 
-When an authorized party needs to decrypt, they request delegation through the gateway :
+**Delegation (`POST /v0/delegate`):** When an authorized party needs to decrypt a value, the [nox-handle-gateway](https://github.com/iExec-Nox/nox-handle-gateway) forwards an ephemeral public key and the caller's RSA public key to this KMS. The KMS computes the ECDH shared secret (`SharedSecret = EphemeralPubKey * KMS_PrivateKey`), encrypts its X-coordinate with the RSA key (RSA-OAEP SHA-256), and returns the result with an EIP-712 proof signature. The caller decrypts locally; the KMS private key never leaves this service.
 
-1. The KMS receives the ephemeral public key and a target RSA public key
-2. It computes the same shared secret: `SharedSecret = EphemeralPubKey * KMS_PrivateKey`
-3. The X-coordinate of the shared secret is encrypted with the RSA public key (RSA-OAEP SHA-256)
-4. The encrypted result is returned with an EIP-712 proof signature
+---
 
-This allows secure delegation of decryption capabilities to the RSA key holder, without exposing the KMS private key.
+## Prerequisites
 
-## Configuration
+- Rust >= 1.85 (edition 2024)
+- Access to an Ethereum RPC endpoint
+- A running [nox-handle-gateway](https://github.com/iExec-Nox/nox-handle-gateway) instance to call this KMS
+
+---
+
+## Getting Started
+
+```bash
+git clone https://github.com/iExec-Nox/nox-kms.git
+cd nox-kms
+
+# Set required environment variables
+export NOX_KMS_ECC_KEY="0x..."
+export NOX_KMS_WALLET_KEY="0x..."
+export NOX_KMS_CHAIN__RPC_URL="https://..."
+export NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT="0x..."
+
+# Build and run
+cargo run --release
+```
+
+---
+
+## Environment Variables
 
 Configuration is loaded from environment variables with the `NOX_KMS_` prefix. Nested properties use double underscore (`__`) as separator.
 
-### Environment Variables
-
-| Variable | Description | Default |
-| -------- | ----------- | ------- |
-| `NOX_KMS_SERVER__HOST` | Server bind address | `127.0.0.1` |
-| `NOX_KMS_SERVER__PORT` | Server port | `9000` |
-| `NOX_KMS_ECC_KEY` | EC private key (secp256k1, 32 bytes hex-encoded, 0x prefix optional) | *required* |
-| `NOX_KMS_WALLET_KEY` | Wallet private key for signing proofs (32 bytes hex-encoded) | *required* |
-| `NOX_KMS_CHAIN__CHAIN_ID` | Blockchain chain ID | `421614` (Arbitrum Sepolia) |
-| `NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT` | NoxCompute contract address | `0x0000...0000` |
-| `NOX_KMS_CHAIN__RPC_URL` | Blockchain RPC endpoint | `http://localhost:8545` |
-
-### Secret Files
+| Variable | Description | Required | Default |
+| -------- | ----------- | -------- | ------- |
+| `NOX_KMS_SERVER__HOST` | Server bind address | No | `127.0.0.1` |
+| `NOX_KMS_SERVER__PORT` | Server port | No | `9000` |
+| `NOX_KMS_ECC_KEY` | EC private key (secp256k1, 32 bytes hex-encoded, 0x prefix optional) | **Yes** | — |
+| `NOX_KMS_WALLET_KEY` | Wallet private key for signing proofs (32 bytes hex-encoded) | **Yes** | — |
+| `NOX_KMS_CHAIN__CHAIN_ID` | Blockchain chain ID | No | `421614` (Arbitrum Sepolia) |
+| `NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT` | NoxCompute contract address | No | `0x0000...0000` |
+| `NOX_KMS_CHAIN__RPC_URL` | Blockchain RPC endpoint | **Yes** | `http://localhost:8545` |
 
 For sensitive values, you can use the `_FILE` suffix to load from a file:
 
@@ -52,14 +79,14 @@ NOX_KMS_ECC_KEY_FILE=/run/secrets/ecc_key
 NOX_KMS_WALLET_KEY_FILE=/run/secrets/wallet_key
 ```
 
-### Logging
-
 Logging level is controlled via the `RUST_LOG` environment variable:
 
 ```bash
 RUST_LOG=info    # Default
 RUST_LOG=debug   # Verbose logging
 ```
+
+---
 
 ## API Reference
 
@@ -162,31 +189,20 @@ struct DelegateAuthorization {
 }
 ```
 
-## Building
+---
 
-```bash
-cargo build --release
-```
+## Related Repositories
 
-## Running
+| Repository | Role |
+| ---------- | ---- |
+| [nox-handle-gateway](https://github.com/iExec-Nox/nox-handle-gateway) | Handle Gateway — encrypts values, manages ciphertext storage, calls this KMS for delegation |
 
-```bash
-# Set required environment variables
-export NOX_KMS_ECC_KEY="0x..."
-export NOX_KMS_WALLET_KEY="0x..."
-export NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT="0x..."
-export NOX_KMS_CHAIN__RPC_URL="https://..."
-
-# Run the service
-cargo run --release
-```
+---
 
 ## License
 
-The Nox Protocol source code is released under the Business Source License
-1.1 (BUSL-1.1).
+The Nox Protocol source code is released under the Business Source License 1.1 (BUSL-1.1).
 
-The license will automatically convert to the MIT License under the
-conditions described in the LICENSE file.
+The license will automatically convert to the MIT License under the conditions described in the [LICENSE](./LICENSE) file.
 
-The full text of the MIT License is provided in the LICENSE-MIT file.
+The full text of the MIT License is provided in the [LICENSE-MIT](./LICENSE-MIT) file.
