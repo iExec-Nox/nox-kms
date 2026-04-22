@@ -47,10 +47,10 @@ git clone https://github.com/iExec-Nox/nox-kms.git
 cd nox-kms
 
 # Set required environment variables
-export NOX_KMS_ECC_KEY="0x..."
 export NOX_KMS_WALLET_KEY="0x..."
-export NOX_KMS_CHAIN__RPC_URL="https://..."
-export NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT="0x..."
+export NOX_KMS_CHAINS__<CHAIN_ID>__RPC_URL="https://..."
+export NOX_KMS_CHAINS__<CHAIN_ID>__NOX_COMPUTE_CONTRACT_ADDRESS="0x..."
+export NOX_KMS_CHAINS__<CHAIN_ID>__ECC_KEY="0x..."
 
 # Build and run
 cargo run --release
@@ -66,11 +66,10 @@ Configuration is loaded from environment variables with the `NOX_KMS_` prefix. N
 | -------- | ----------- | -------- | ------- |
 | `NOX_KMS_SERVER__HOST` | Server bind address | No | `127.0.0.1` |
 | `NOX_KMS_SERVER__PORT` | Server port | No | `9000` |
-| `NOX_KMS_ECC_KEY` | EC private key (secp256k1, 32 bytes hex-encoded, 0x prefix optional) | **Yes** | — |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__ECC_KEY` | EC private key (secp256k1, 32 bytes hex-encoded, 0x prefix optional) | **Yes** | — |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__NOX_COMPUTE_CONTRACT_ADDRESS` | NoxCompute contract address | No | `0x0000...0000` |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__RPC_URL` | Blockchain RPC endpoint | **Yes** | `http://localhost:8545` |
 | `NOX_KMS_WALLET_KEY` | Wallet private key for signing proofs (32 bytes hex-encoded) | **Yes** | — |
-| `NOX_KMS_CHAIN__CHAIN_ID` | Blockchain chain ID | No | `421614` (Arbitrum Sepolia) |
-| `NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT` | NoxCompute contract address | No | `0x0000...0000` |
-| `NOX_KMS_CHAIN__RPC_URL` | Blockchain RPC endpoint | **Yes** | `http://localhost:8545` |
 
 For sensitive values, you can use the `_FILE` suffix to load from a file:
 

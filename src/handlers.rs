@@ -1,9 +1,11 @@
-use alloy_primitives::{Address, hex};
+use std::collections::HashMap;
+
+use alloy_primitives::{Address, FixedBytes, hex};
 use alloy_signer::Signature;
 use alloy_sol_types::{SolStruct, eip712_domain, sol};
 use axum::{
     Json,
-    extract::State,
+    extract::{Query, State},
     http::{
         StatusCode, Uri,
         header::{AUTHORIZATION, HeaderMap},
@@ -22,18 +24,26 @@ use crate::errors::KmsResult;
 use crate::service::KmsService;
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
 
+/// Shared query parameters for every versioned endpoint.
+///
+/// - `salt` — optional 32-byte hex value bound into the Handle Gateway EIP-712
+///   response-signing domain so callers can associate a response with a
+///   specific request. Absent → `bytes32(0)`.
+/// - `chain_id` — only meaningful on `POST /v0/secrets`. Optional; when
+///   provided it must equal `config.chain.id`, otherwise the request is
+///   rejected (400). When absent the gateway falls back to `config.chain.id`.
+///   Other endpoints ignore this field.
+#[derive(Debug, Deserialize)]
+pub struct QueryParams {
+    chain_id: u32,
+    salt: String,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DelegateRequest {
     pub ephemeral_pub_key: String,
     pub target_pub_key: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PublicKeyResponse {
-    pub public_key: String,
-    pub proof: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -129,10 +139,21 @@ pub async fn not_found(uri: Uri) -> impl IntoResponse {
 ///   - RSA encryption failure
 pub async fn delegate(
     State(kms_service): State<KmsService>,
-    State(gateway_address): State<Address>,
+    State(gateway_addresses): State<HashMap<u32, Address>>,
     headers: HeaderMap,
+    Query(query_params): Query<QueryParams>,
     Json(payload): Json<DelegateRequest>,
 ) -> KmsResult<Json<DelegateResponse>> {
+    let chain_id = query_params.chain_id;
+    let bytes = hex::decode(&query_params.salt)
+        .map_err(|e| KmsError::InvalidQueryParams(format!("{e}")))?;
+    if bytes.len() != 32 {
+        return Err(KmsError::InvalidQueryParams(
+            "salt length must be 32 bytes".to_string(),
+        ));
+    }
+    let salt = FixedBytes::<32>::from_slice(&bytes);
+
     let signature_str = headers
         .get(AUTHORIZATION)
         .ok_or_else(|| KmsError::Unauthorized("Authorization header is required".to_string()))?
@@ -147,9 +168,9 @@ pub async fn delegate(
 
     verify_delegate_authorization(
         signature_str,
-        u64::from(kms_service.chain_id),
+        chain_id,
         &payload,
-        gateway_address,
+        gateway_addresses[&chain_id],
     )?;
 
     let ephemeral_pub_key = strip_0x_prefix(&payload.ephemeral_pub_key);
@@ -162,11 +183,15 @@ pub async fn delegate(
     validate_rsa_key_size(target_pub_key)?;
 
     let encrypted_shared_secret_hex =
-        kms_service.ecies_delegate(ephemeral_pub_key, target_pub_key)?;
+        kms_service.ecies_delegate(chain_id, ephemeral_pub_key, target_pub_key)?;
     let prefixed_encrypted_shared_secret = add_0x_prefix(&encrypted_shared_secret_hex);
     Ok(Json(DelegateResponse {
         encrypted_shared_secret: prefixed_encrypted_shared_secret.clone(),
-        proof: kms_service.compute_delegate_response_proof(&prefixed_encrypted_shared_secret)?,
+        proof: kms_service.compute_delegate_response_proof(
+            chain_id,
+            salt,
+            &prefixed_encrypted_shared_secret,
+        )?,
     }))
 }
 
@@ -183,14 +208,14 @@ pub async fn delegate(
 /// () on success, or a `KmsError` on failure.
 fn verify_delegate_authorization(
     signature_str: &str,
-    chain_id: u64,
+    chain_id: u32,
     payload: &DelegateRequest,
     gateway_address: Address,
 ) -> KmsResult<()> {
     let domain = eip712_domain! {
         name: PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
         version: EIP_712_DOMAIN_VERSION,
-        chain_id: chain_id,
+        chain_id: u64::from(chain_id),
     };
 
     let signature_bytes =

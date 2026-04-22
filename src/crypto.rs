@@ -16,12 +16,9 @@ use crate::errors::{KmsError, KmsResult};
 ///
 /// Returns the private and public key, just like generate_ec_key_pair().
 pub fn import_ec_key_pair(hex_key: &str) -> KmsResult<(F, ProjectivePoint)> {
-    // Remove 0x prefix if present
-    let hex_clean = hex_key.strip_prefix("0x").unwrap_or(hex_key);
-
     // Decode hex to bytes (should be SECP256K1_PRIVATE_KEY_SIZE bytes = 64 hex chars)
-    let bytes = hex::decode(hex_clean)
-        .map_err(|e| KmsError::Crypto(format!("Invalid hex string in NOX_KMS_ECC_KEY: {}", e)))?;
+    let bytes = hex::decode(hex_key)
+        .map_err(|e| KmsError::Crypto(format!("Invalid hex string in NOX_KMS_ECC_KEY: {e}")))?;
 
     if bytes.len() != SECP256K1_PRIVATE_KEY_SIZE {
         return Err(KmsError::Crypto(format!(
@@ -52,13 +49,9 @@ pub fn import_ec_key_pair(hex_key: &str) -> KmsResult<(F, ProjectivePoint)> {
 ///
 /// Returns the PrivateKeySigner, just like generate_sign_key().
 pub fn import_wallet_key(hex_key: &str) -> KmsResult<PrivateKeySigner> {
-    // Remove 0x prefix if present
-    let hex_clean = hex_key.strip_prefix("0x").unwrap_or(hex_key);
-
     // Decode hex to bytes (should be SECP256K1_PRIVATE_KEY_SIZE bytes = 64 hex chars)
-    let bytes = hex::decode(hex_clean).map_err(|e| {
-        KmsError::Crypto(format!("Invalid hex string in NOX_KMS_WALLET_KEY: {}", e))
-    })?;
+    let bytes = hex::decode(hex_key)
+        .map_err(|e| KmsError::Crypto(format!("Invalid hex string in NOX_KMS_WALLET_KEY: {e}")))?;
 
     if bytes.len() != SECP256K1_PRIVATE_KEY_SIZE {
         return Err(KmsError::Crypto(format!(
@@ -73,9 +66,8 @@ pub fn import_wallet_key(hex_key: &str) -> KmsResult<PrivateKeySigner> {
     bytes_array.copy_from_slice(&bytes);
 
     // Create PrivateKeySigner from bytes (from_bytes expects &B256)
-    let signer = PrivateKeySigner::from_bytes(&bytes_array.into()).map_err(|e| {
-        KmsError::Crypto(format!("Invalid private key in NOX_KMS_WALLET_KEY: {}", e))
-    })?;
+    let signer = PrivateKeySigner::from_bytes(&bytes_array.into())
+        .map_err(|e| KmsError::Crypto(format!("Invalid private key in NOX_KMS_WALLET_KEY: {e}")))?;
 
     Ok(signer)
 }

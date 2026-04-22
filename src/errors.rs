@@ -7,6 +7,8 @@ use tracing::warn;
 pub enum KmsError {
     #[error("Cryptographic error: {0}")]
     Crypto(String),
+    #[error("Invalid query parameters: {0}")]
+    InvalidQueryParams(String),
     #[error("Storage error: {0}")]
     Storage(String),
     #[error("Unauthorized: {0}")]
@@ -19,6 +21,7 @@ impl IntoResponse for KmsError {
         let status = match &self {
             KmsError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             KmsError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            KmsError::InvalidQueryParams(_) => StatusCode::BAD_REQUEST,
             KmsError::Crypto(_) => StatusCode::BAD_REQUEST,
         };
         (status, Json(json!({ "error": self.to_string() }))).into_response()
