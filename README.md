@@ -56,6 +56,11 @@ export NOX_KMS_CHAINS__<CHAIN_ID>__ECC_KEY="0x..."
 cargo run --release
 ```
 
+> [!IMPORTANT]
+> `<CHAIN_ID>` represents the chain ID (421614 for Arbitrum Sepolia) of the target blockchain network
+> where the `NoxCompute` smart contract has been deployed. The KMS will be able to prepare shared secrets for
+> handles created and encrypted with the KMS public key configured for this `NoxCompute` smart contract deployment.
+
 ---
 
 ## Environment Variables
