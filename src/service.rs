@@ -1,10 +1,13 @@
-use alloy_primitives::hex;
+use std::collections::HashMap;
+
+use alloy_primitives::{FixedBytes, hex};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{eip712_domain, sol};
 use k256::{ProjectivePoint, Scalar as F, elliptic_curve::group::GroupEncoding};
 use tracing::{debug, info};
 
+use crate::config::ChainConfig;
 use crate::constants::{EIP_712_DOMAIN_VERSION, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME};
 use crate::crypto::{
     hex_to_point, hex_to_rsa_public_key, import_ec_key_pair, import_wallet_key,
@@ -21,58 +24,64 @@ sol! {
 }
 
 #[derive(Clone)]
-pub struct KmsService {
+struct EcKeyPair {
     pub private_key: F,
     pub public_key: ProjectivePoint,
+}
+
+#[derive(Clone)]
+pub struct KmsService {
+    ec_keys: HashMap<u32, EcKeyPair>,
     pub signer: PrivateKeySigner,
-    pub chain_id: u32,
 }
 
 impl KmsService {
     /// Loads keys from environment variables
-    pub fn load_keys(chain_id: u32, ecc_key: &str, wallet_key: &str) -> KmsResult<Self> {
-        // Load EC keys from environment variable
-        if ecc_key.is_empty() {
-            return Err(KmsError::Crypto(
-                "NOX_KMS_ECC_KEY environment variable not provided".to_string(),
-            ));
-        }
-        info!("Importing EC keys from environment variable");
-        let (private_key, public_key) = import_ec_key_pair(ecc_key)?;
+    pub fn load_keys(chains: &HashMap<u32, ChainConfig>, wallet_key: &str) -> KmsResult<Self> {
+        let ec_keys: HashMap<u32, EcKeyPair> = chains
+            .iter()
+            .map(|(chain_id, chain_config)| {
+                // Load EC keys from environment variable
+                info!("Importing EC keys from environment variable");
+                let (private_key, public_key) = import_ec_key_pair(&chain_config.ecc_key)?;
+                Ok((
+                    *chain_id,
+                    EcKeyPair {
+                        private_key,
+                        public_key,
+                    },
+                ))
+            })
+            .collect::<Result<HashMap<u32, EcKeyPair>, KmsError>>()?;
 
         // Load signer from environment variable
-        if wallet_key.is_empty() {
-            return Err(KmsError::Crypto(
-                "NOX_KMS_WALLET_KEY environment variable not provided".to_string(),
-            ));
-        }
         info!("Importing wallet key from environment variable");
         let signer = import_wallet_key(wallet_key)?;
 
-        let service = Self {
-            private_key,
-            public_key,
-            signer,
-            chain_id,
-        };
+        let service = Self { ec_keys, signer };
 
-        info!(
-            "KMS ready - public key: {}, signer: {}",
-            hex::encode_prefixed(service.public_key.to_bytes()),
-            service.signer.address()
-        );
+        info!("KMS ready - signer: {}", service.signer.address());
+        service.ec_keys.iter().for_each(|(chain_id, ec_key)| {
+            info!(
+                "KMS ready - chain {chain_id} - public key {}",
+                hex::encode_prefixed(ec_key.public_key.to_bytes())
+            )
+        });
 
         Ok(service)
     }
 
     pub fn compute_delegate_response_proof(
         &self,
+        chain_id: u32,
+        salt: FixedBytes<32>,
         encrypted_shared_secret: &str,
     ) -> KmsResult<String> {
         let domain = eip712_domain! {
             name: PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME,
             version: EIP_712_DOMAIN_VERSION,
-            chain_id: u64::from(self.chain_id),
+            chain_id: u64::from(chain_id),
+            salt: salt,
         };
         let proof = DelegateResponseProof {
             encryptedSharedSecret: encrypted_shared_secret.to_string(),
@@ -100,6 +109,7 @@ impl KmsService {
     /// Hex-encoded RSA-OAEP encrypted shared secret (no 0x prefix), or `KmsError::Crypto` on failure.
     pub fn ecies_delegate(
         &self,
+        chain_id: u32,
         ephemeral_pub_key_hex: &str,
         target_rsa_pub_key_hex: &str,
     ) -> KmsResult<String> {
@@ -111,7 +121,7 @@ impl KmsService {
 
         let ephemeral_pub_key = hex_to_point(ephemeral_pub_key_hex)?;
         let rsa_pub_key = hex_to_rsa_public_key(target_rsa_pub_key_hex)?;
-        let shared_secret = ephemeral_pub_key * self.private_key;
+        let shared_secret = ephemeral_pub_key * self.ec_keys[&chain_id].private_key;
         let result = rsa_encrypt_shared_secret(&shared_secret, &rsa_pub_key)?;
 
         debug!(

@@ -7,8 +7,9 @@ pub mod handlers;
 pub mod service;
 pub mod utils;
 
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use validator::Validate;
 
 use crate::application::Application;
 use crate::config::Config;
@@ -23,11 +24,10 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let config = Config::load().map_err(|e| {
-        error!("Failed to load configuration: {e}");
-        e
-    })?;
-    debug!("Configuration loaded: {:?}", config);
+    let config = Config::load().inspect_err(|e| error!("Failed to load configuration: {e}"))?;
+    config
+        .validate()
+        .inspect_err(|e| error!("Invalid configuration: {e}"))?;
 
     info!("Starting KMS on {}", config.bind_addr());
     let app = Application::new(config).await?;

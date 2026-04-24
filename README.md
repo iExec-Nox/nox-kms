@@ -47,14 +47,19 @@ git clone https://github.com/iExec-Nox/nox-kms.git
 cd nox-kms
 
 # Set required environment variables
-export NOX_KMS_ECC_KEY="0x..."
 export NOX_KMS_WALLET_KEY="0x..."
-export NOX_KMS_CHAIN__RPC_URL="https://..."
-export NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT="0x..."
+export NOX_KMS_CHAINS__<CHAIN_ID>__RPC_URL="https://..."
+export NOX_KMS_CHAINS__<CHAIN_ID>__NOX_COMPUTE_CONTRACT_ADDRESS="0x..."
+export NOX_KMS_CHAINS__<CHAIN_ID>__ECC_KEY="0x..."
 
 # Build and run
 cargo run --release
 ```
+
+> [!IMPORTANT]
+> `<CHAIN_ID>` represents the chain ID (421614 for Arbitrum Sepolia) of the target blockchain network
+> where the `NoxCompute` smart contract has been deployed. The KMS will be able to prepare shared secrets for
+> handles created and encrypted with the KMS public key configured for this `NoxCompute` smart contract deployment.
 
 ---
 
@@ -66,11 +71,10 @@ Configuration is loaded from environment variables with the `NOX_KMS_` prefix. N
 | -------- | ----------- | -------- | ------- |
 | `NOX_KMS_SERVER__HOST` | Server bind address | No | `127.0.0.1` |
 | `NOX_KMS_SERVER__PORT` | Server port | No | `9000` |
-| `NOX_KMS_ECC_KEY` | EC private key (secp256k1, 32 bytes hex-encoded, 0x prefix optional) | **Yes** | — |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__ECC_KEY` | EC private key (secp256k1, 32 bytes hex-encoded, 0x prefix optional) | **Yes** | — |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__NOX_COMPUTE_CONTRACT_ADDRESS` | NoxCompute contract address | No | `0x0000...0000` |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__RPC_URL` | Blockchain RPC endpoint | **Yes** | `http://localhost:8545` |
 | `NOX_KMS_WALLET_KEY` | Wallet private key for signing proofs (32 bytes hex-encoded) | **Yes** | — |
-| `NOX_KMS_CHAIN__CHAIN_ID` | Blockchain chain ID | No | `421614` (Arbitrum Sepolia) |
-| `NOX_KMS_CHAIN__NOX_COMPUTE_CONTRACT` | NoxCompute contract address | No | `0x0000...0000` |
-| `NOX_KMS_CHAIN__RPC_URL` | Blockchain RPC endpoint | **Yes** | `http://localhost:8545` |
 
 For sensitive values, you can use the `_FILE` suffix to load from a file:
 
@@ -137,6 +141,13 @@ Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
 | ------ | ----------- |
 | `Authorization` | `Bearer 0x<eip712_signature>` - EIP-712 signature from the authorized gateway |
 
+**Query Parameters:**
+
+| Parameter | Description | Required |
+| --------- | ----------- | -------- |
+| `chain_id` | Chain ID to use for this handle. Must correspond to a configured chain. | No |
+| `salt` | 32-byte hex value (`0x` + 64 hex chars) bound into the KMS EIP-712 response-signing domain. Defaults to `bytes32(0)` when omitted. | No |
+
 **Request Body:**
 
 ```json
@@ -169,7 +180,7 @@ Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
 
 | Status | Description |
 | ------ | ----------- |
-| `400 Bad Request` | Invalid key format, size, or encoding |
+| `400 Bad Request` | Invalid key format, size, or encoding or invalid query parameters |
 | `401 Unauthorized` | Missing or invalid authorization signature |
 
 **EIP-712 Domain (for authorization signature):**

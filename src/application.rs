@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use alloy_primitives::Address;
 use alloy_provider::ProviderBuilder;
 use alloy_sol_types::sol;
@@ -26,7 +28,7 @@ const VERSIONED_PATHS: &str = "/v0/{*path}";
 pub struct AppState {
     pub kms_service: KmsService,
     pub metrics_handle: PrometheusHandle,
-    pub gateway_address: Address,
+    pub gateway_addresses: HashMap<u32, Address>,
 }
 
 impl FromRef<AppState> for KmsService {
@@ -41,9 +43,9 @@ impl FromRef<AppState> for PrometheusHandle {
     }
 }
 
-impl FromRef<AppState> for Address {
+impl FromRef<AppState> for HashMap<u32, Address> {
     fn from_ref(state: &AppState) -> Self {
-        state.gateway_address
+        state.gateway_addresses.clone()
     }
 }
 
@@ -62,29 +64,45 @@ pub struct Application {
 
 impl Application {
     pub async fn new(config: Config) -> Result<Self> {
-        let kms_service =
-            KmsService::load_keys(config.chain.chain_id, &config.ecc_key, &config.wallet_key)
-                .context("Failed to load KMS keys from environment variables")?;
+        let kms_service = KmsService::load_keys(&config.chains, &config.wallet_key)
+            .context("Failed to load KMS keys from environment variables")?;
 
-        let provider = ProviderBuilder::new()
-            .connect(&config.chain.rpc_url)
-            .await
-            .context("Failed to connect to RPC provider")?;
+        let mut gateway_addresses: HashMap<u32, Address> = HashMap::new();
+        for chain_id in config.chains.keys().collect::<Vec<_>>() {
+            let provider = ProviderBuilder::new()
+                .connect(&config.chains[chain_id].rpc_url)
+                .await
+                .context(format!(
+                    "Failed to connect to RPC provider for chain {chain_id}"
+                ))?;
 
-        let contract = INoxCompute::new(config.chain.nox_compute_contract, &provider);
-        let gateway_address = contract
-            .gateway()
-            .call()
-            .await
-            .context("Failed to fetch gateway address from NoxCompute contract")?;
-        if gateway_address == Address::ZERO {
-            return Err(Error::msg(format!(
-                "NoxCompute contract call to gateway() returned {}",
-                Address::ZERO
-            )));
+            let contract = INoxCompute::new(
+                config.chains[chain_id].nox_compute_contract_address,
+                &provider,
+            );
+            let gateway_address = contract.gateway().call().await.context(format!(
+                "Failed to fetch gateway address from NoxCompute contract from chain {chain_id}"
+            ))?;
+            if gateway_address == Address::ZERO {
+                return Err(Error::msg(format!(
+                    "NoxCompute contract call to gateway() returned {} from chain {chain_id}",
+                    Address::ZERO
+                )));
+            }
+
+            info!(
+                chain_id,
+                "Gateway address {gateway_address} on chain {chain_id}"
+            );
+            if gateway_addresses
+                .insert(*chain_id, gateway_address)
+                .is_some()
+            {
+                return Err(Error::msg(format!(
+                    "Failed to register gateway address {gateway_address} on chain {chain_id}"
+                )));
+            }
         }
-
-        info!("Gateway address: {gateway_address}");
 
         let prometheus_layer = PrometheusMetricLayerBuilder::new()
             .with_allow_patterns(&["/", "/health", "/metrics", VERSIONED_PATHS])
@@ -95,7 +113,7 @@ impl Application {
             state: AppState {
                 kms_service,
                 metrics_handle,
-                gateway_address,
+                gateway_addresses,
             },
             prometheus_layer,
         })
