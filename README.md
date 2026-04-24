@@ -180,7 +180,7 @@ Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
 
 | Status | Description |
 | ------ | ----------- |
-| `400 Bad Request` | Invalid key format, size, or encoding |
+| `400 Bad Request` | Invalid key format, size, or encoding or invalid query parameters |
 | `401 Unauthorized` | Missing or invalid authorization signature |
 
 **EIP-712 Domain (for authorization signature):**

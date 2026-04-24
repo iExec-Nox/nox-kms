@@ -133,6 +133,7 @@ pub async fn not_found(uri: Uri) -> impl IntoResponse {
 ///
 /// **Error (400 Bad Request)**:
 /// - `error`: Description of what went wrong:
+///   - Invalid query `chain_id` or `salt` query parameters
 ///   - Invalid ephemeral public key size (must be 33 bytes)
 ///   - Invalid RSA key size (must be at least 2048 bits)
 ///   - Invalid hex encoding
