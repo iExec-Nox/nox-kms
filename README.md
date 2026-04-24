@@ -141,6 +141,13 @@ Computes and RSA-encrypts an ECDH shared secret for ECIES delegation.
 | ------ | ----------- |
 | `Authorization` | `Bearer 0x<eip712_signature>` - EIP-712 signature from the authorized gateway |
 
+**Query Parameters:**
+
+| Parameter | Description | Required |
+| --------- | ----------- | -------- |
+| `chain_id` | Chain ID to use for this handle. Must correspond to a configured chain. | No |
+| `salt` | 32-byte hex value (`0x` + 64 hex chars) bound into the KMS EIP-712 response-signing domain. Defaults to `bytes32(0)` when omitted. | No |
+
 **Request Body:**
 
 ```json

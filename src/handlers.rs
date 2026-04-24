@@ -16,6 +16,7 @@ use chrono::Utc;
 use metrics_exporter_prometheus::PrometheusHandle;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use tracing::warn;
 
 use crate::constants::{EIP_712_DOMAIN_VERSION, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME};
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
@@ -145,11 +146,20 @@ pub async fn delegate(
     Json(payload): Json<DelegateRequest>,
 ) -> KmsResult<Json<DelegateResponse>> {
     let chain_id = query_params.chain_id;
+    if !gateway_addresses.contains_key(&chain_id) {
+        warn!("Unknown Chain ID {chain_id}");
+        return Err(KmsError::InvalidQueryParams(format!(
+            "Unknown Chain ID {chain_id}"
+        )));
+    }
+
     let bytes = hex::decode(&query_params.salt)
+        .inspect_err(|e| warn!("Salt {} is not a valid hex: {e}", query_params.salt))
         .map_err(|e| KmsError::InvalidQueryParams(format!("{e}")))?;
     if bytes.len() != 32 {
+        warn!("Salt {} length must be 32-bytes", query_params.salt);
         return Err(KmsError::InvalidQueryParams(
-            "salt length must be 32 bytes".to_string(),
+            "Salt length must be 32 bytes".to_string(),
         ));
     }
     let salt = FixedBytes::<32>::from_slice(&bytes);
