@@ -71,6 +71,15 @@ impl KmsService {
         Ok(service)
     }
 
+    /// Returns the locally-derived secp256k1 public key for the given chain,
+    /// or `None` if no keypair is loaded for that chain id.
+    ///
+    /// Used at startup by `Application::new` to verify against the on-chain
+    /// registration.
+    pub fn ec_public_key(&self, chain_id: u32) -> Option<&ProjectivePoint> {
+        self.ec_keys.get(&chain_id).map(|kp| &kp.public_key)
+    }
+
     pub fn compute_delegate_response_proof(
         &self,
         chain_id: u32,

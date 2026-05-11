@@ -2,7 +2,7 @@ use alloy_primitives::hex;
 use alloy_signer_local::PrivateKeySigner;
 use k256::{
     FieldBytes, ProjectivePoint, Scalar as F,
-    elliptic_curve::{PrimeField, rand_core::OsRng, sec1::FromEncodedPoint},
+    elliptic_curve::{PrimeField, group::GroupEncoding, rand_core::OsRng, sec1::FromEncodedPoint},
 };
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};
 use sha2::Sha256;
@@ -145,6 +145,38 @@ pub fn validate_rsa_key_size(hex: &str) -> KmsResult<()> {
             "Invalid RSA public key size: expected at least {} hex chars (256 bytes), got {}",
             MIN_RSA_KEY_HEX_LEN,
             hex.len()
+        )));
+    }
+    Ok(())
+}
+
+/// Asserts that the on-chain registered public key matches the local one.
+///
+/// Decodes the on-chain bytes as a SEC1 secp256k1 point and compares it to
+/// `local` as a curve point (not as raw bytes), so a malformed or off-curve
+/// on-chain value is reported distinctly from a key mismatch.
+///
+/// Returns `Ok(())` when the points are equal; `KmsError::Crypto` with a
+/// descriptive message otherwise.
+pub fn assert_onchain_kms_pubkey_matches(local: &ProjectivePoint, onchain: &[u8]) -> KmsResult<()> {
+    let encoded = k256::EncodedPoint::from_bytes(onchain).map_err(|e| {
+        KmsError::Crypto(format!(
+            "on-chain KMS public key ({} bytes) is not a valid SEC1 encoding: {e}",
+            onchain.len(),
+        ))
+    })?;
+    let onchain_point: ProjectivePoint =
+        Option::from(ProjectivePoint::from_encoded_point(&encoded)).ok_or_else(|| {
+            KmsError::Crypto(format!(
+                "on-chain KMS public key {} is not on the secp256k1 curve",
+                hex::encode_prefixed(onchain),
+            ))
+        })?;
+    if onchain_point != *local {
+        return Err(KmsError::Crypto(format!(
+            "on-chain KMS public key {} does not match local-derived {}",
+            hex::encode_prefixed(onchain),
+            hex::encode_prefixed(local.to_bytes()),
         )));
     }
     Ok(())
