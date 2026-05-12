@@ -4,10 +4,7 @@ use alloy_primitives::{FixedBytes, hex};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{eip712_domain, sol};
-use k256::{
-    ProjectivePoint, Scalar as F,
-    elliptic_curve::{group::GroupEncoding, sec1::FromEncodedPoint},
-};
+use k256::{ProjectivePoint, PublicKey, Scalar as F, elliptic_curve::group::GroupEncoding};
 use tracing::{debug, info};
 
 use crate::config::ChainConfig;
@@ -87,27 +84,22 @@ impl KmsService {
         onchain: &[u8],
         chain_id: &u32,
     ) -> KmsResult<()> {
-        let encoded = k256::EncodedPoint::from_bytes(onchain).map_err(|e| {
-            KmsError::Crypto(format!(
-                "on-chain KMS public key ({} bytes) is not a valid SEC1 encoding: {e}",
-                onchain.len(),
-            ))
-        })?;
-        let onchain_point: ProjectivePoint =
-            Option::from(ProjectivePoint::from_encoded_point(&encoded)).ok_or_else(|| {
+        let onchain_point: ProjectivePoint = PublicKey::from_sec1_bytes(onchain)
+            .map_err(|e| {
                 KmsError::Crypto(format!(
-                    "on-chain KMS public key {} is not on the secp256k1 curve",
-                    hex::encode_prefixed(onchain),
+                    "on-chain KMS public key ({} bytes) is not a valid SEC1 encoding: {e}",
+                    onchain.len(),
                 ))
-            })?;
-        let local = self
+            })?
+            .to_projective();
+        let local: ProjectivePoint = *self
             .ec_keys
             .get(chain_id)
             .map(|kp| &kp.public_key)
             .ok_or_else(|| {
                 KmsError::Crypto(format!("No EC public key loaded for chain {chain_id}"))
             })?;
-        if onchain_point != *local {
+        if onchain_point != local {
             return Err(KmsError::Crypto(format!(
                 "on-chain KMS public key {} does not match local-derived {}",
                 hex::encode_prefixed(onchain),
