@@ -18,7 +18,6 @@ use tower_http::trace::TraceLayer;
 use tracing::{debug, info, warn};
 
 use crate::config::Config;
-use crate::crypto::assert_onchain_kms_pubkey_matches;
 use crate::handlers;
 use crate::service::KmsService;
 
@@ -109,17 +108,15 @@ impl Application {
             let onchain_kms_pubkey = contract.kmsPublicKey().call().await.with_context(|| {
                 format!("Failed to fetch kmsPublicKey() from NoxCompute on chain {chain_id}")
             })?;
-            let local_pubkey = kms_service
-                .ec_public_key(*chain_id)
-                .with_context(|| format!("No EC key loaded for chain {chain_id}"))?;
-            assert_onchain_kms_pubkey_matches(local_pubkey, &onchain_kms_pubkey).with_context(
-                || {
-                    format!(
-                        "Local ECC key for chain {chain_id} does not match on-chain registration at NoxCompute {}",
-                        config.chains[chain_id].nox_compute_contract_address,
-                    )
-                },
-            )?;
+            kms_service.assert_onchain_kms_pubkey_matches(&onchain_kms_pubkey, chain_id)
+                .with_context(
+                    || {
+                        format!(
+                            "Local ECC key for chain {chain_id} does not match on-chain registration at NoxCompute {}",
+                            config.chains[chain_id].nox_compute_contract_address,
+                        )
+                    },
+                )?;
             info!(chain_id, "KMS public key matches on-chain registration");
         }
 

@@ -4,7 +4,10 @@ use alloy_primitives::{FixedBytes, hex};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{eip712_domain, sol};
-use k256::{ProjectivePoint, Scalar as F, elliptic_curve::group::GroupEncoding};
+use k256::{
+    ProjectivePoint, Scalar as F,
+    elliptic_curve::{group::GroupEncoding, sec1::FromEncodedPoint},
+};
 use tracing::{debug, info};
 
 use crate::config::ChainConfig;
@@ -71,13 +74,47 @@ impl KmsService {
         Ok(service)
     }
 
-    /// Returns the locally-derived secp256k1 public key for the given chain,
-    /// or `None` if no keypair is loaded for that chain id.
+    /// Asserts that the on-chain registered public key matches the local one.
     ///
-    /// Used at startup by `Application::new` to verify against the on-chain
-    /// registration.
-    pub fn ec_public_key(&self, chain_id: u32) -> Option<&ProjectivePoint> {
-        self.ec_keys.get(&chain_id).map(|kp| &kp.public_key)
+    /// Decodes the on-chain bytes as a SEC1 secp256k1 point and compares it to
+    /// `local` as a curve point (not as raw bytes), so a malformed or off-curve
+    /// on-chain value is reported distinctly from a key mismatch.
+    ///
+    /// Returns `Ok(())` when the points are equal; `KmsError::Crypto` with a
+    /// descriptive message otherwise.
+    pub fn assert_onchain_kms_pubkey_matches(
+        &self,
+        onchain: &[u8],
+        chain_id: &u32,
+    ) -> KmsResult<()> {
+        let encoded = k256::EncodedPoint::from_bytes(onchain).map_err(|e| {
+            KmsError::Crypto(format!(
+                "on-chain KMS public key ({} bytes) is not a valid SEC1 encoding: {e}",
+                onchain.len(),
+            ))
+        })?;
+        let onchain_point: ProjectivePoint =
+            Option::from(ProjectivePoint::from_encoded_point(&encoded)).ok_or_else(|| {
+                KmsError::Crypto(format!(
+                    "on-chain KMS public key {} is not on the secp256k1 curve",
+                    hex::encode_prefixed(onchain),
+                ))
+            })?;
+        let local = self
+            .ec_keys
+            .get(chain_id)
+            .map(|kp| &kp.public_key)
+            .ok_or_else(|| {
+                KmsError::Crypto(format!("No EC public key loaded for chain {chain_id}"))
+            })?;
+        if onchain_point != *local {
+            return Err(KmsError::Crypto(format!(
+                "on-chain KMS public key {} does not match local-derived {}",
+                hex::encode_prefixed(onchain),
+                hex::encode_prefixed(local.to_bytes()),
+            )));
+        }
+        Ok(())
     }
 
     pub fn compute_delegate_response_proof(
