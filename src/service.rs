@@ -4,7 +4,7 @@ use alloy_primitives::{FixedBytes, hex};
 use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::{eip712_domain, sol};
-use k256::{ProjectivePoint, Scalar as F, elliptic_curve::group::GroupEncoding};
+use k256::{ProjectivePoint, PublicKey, Scalar as F, elliptic_curve::group::GroupEncoding};
 use tracing::{debug, info};
 
 use crate::config::ChainConfig;
@@ -69,6 +69,44 @@ impl KmsService {
         });
 
         Ok(service)
+    }
+
+    /// Asserts that the on-chain registered public key matches the local one.
+    ///
+    /// Decodes the on-chain bytes as a SEC1 secp256k1 point and compares it to
+    /// `local` as a curve point (not as raw bytes), so a malformed or off-curve
+    /// on-chain value is reported distinctly from a key mismatch.
+    ///
+    /// Returns `Ok(())` when the points are equal; `KmsError::Crypto` with a
+    /// descriptive message otherwise.
+    pub fn assert_onchain_kms_pubkey_matches(
+        &self,
+        onchain: &[u8],
+        chain_id: &u32,
+    ) -> KmsResult<()> {
+        let onchain_point: ProjectivePoint = PublicKey::from_sec1_bytes(onchain)
+            .map_err(|e| {
+                KmsError::Crypto(format!(
+                    "on-chain KMS public key ({} bytes) is not a valid SEC1 encoding: {e}",
+                    onchain.len(),
+                ))
+            })?
+            .to_projective();
+        let local: ProjectivePoint = *self
+            .ec_keys
+            .get(chain_id)
+            .map(|kp| &kp.public_key)
+            .ok_or_else(|| {
+                KmsError::Crypto(format!("No EC public key loaded for chain {chain_id}"))
+            })?;
+        if onchain_point != local {
+            return Err(KmsError::Crypto(format!(
+                "on-chain KMS public key {} does not match local-derived {}",
+                hex::encode_prefixed(onchain),
+                hex::encode_prefixed(local.to_bytes()),
+            )));
+        }
+        Ok(())
     }
 
     pub fn compute_delegate_response_proof(

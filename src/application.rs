@@ -53,6 +53,7 @@ sol! {
     #[sol(rpc)]
     interface INoxCompute {
         function gateway() external view returns (address);
+        function kmsPublicKey() external view returns (bytes memory);
     }
 }
 
@@ -72,17 +73,19 @@ impl Application {
             let provider = ProviderBuilder::new()
                 .connect(&config.chains[chain_id].rpc_url)
                 .await
-                .context(format!(
-                    "Failed to connect to RPC provider for chain {chain_id}"
-                ))?;
+                .with_context(|| {
+                    format!("Failed to connect to RPC provider for chain {chain_id}")
+                })?;
 
             let contract = INoxCompute::new(
                 config.chains[chain_id].nox_compute_contract_address,
                 &provider,
             );
-            let gateway_address = contract.gateway().call().await.context(format!(
-                "Failed to fetch gateway address from NoxCompute contract from chain {chain_id}"
-            ))?;
+            let gateway_address = contract.gateway().call().await.with_context(|| {
+                format!(
+                    "Failed to fetch gateway address from NoxCompute contract from chain {chain_id}"
+                )
+            })?;
             if gateway_address == Address::ZERO {
                 return Err(Error::msg(format!(
                     "NoxCompute contract call to gateway() returned {} from chain {chain_id}",
@@ -102,6 +105,19 @@ impl Application {
                     "Failed to register gateway address {gateway_address} on chain {chain_id}"
                 )));
             }
+            let onchain_kms_pubkey = contract.kmsPublicKey().call().await.with_context(|| {
+                format!("Failed to fetch kmsPublicKey() from NoxCompute on chain {chain_id}")
+            })?;
+            kms_service.assert_onchain_kms_pubkey_matches(&onchain_kms_pubkey, chain_id)
+                .with_context(
+                    || {
+                        format!(
+                            "Local ECC key for chain {chain_id} does not match on-chain registration at NoxCompute {}",
+                            config.chains[chain_id].nox_compute_contract_address,
+                        )
+                    },
+                )?;
+            info!(chain_id, "KMS public key matches on-chain registration");
         }
 
         let prometheus_layer = PrometheusMetricLayerBuilder::new()
