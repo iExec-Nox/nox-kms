@@ -11,8 +11,8 @@ use axum::{
 };
 use axum_prometheus::{
     Handle, MakeDefaultHandle, PrometheusMetricLayer, PrometheusMetricLayerBuilder,
+    metrics_exporter_prometheus::PrometheusHandle,
 };
-use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, warn};
