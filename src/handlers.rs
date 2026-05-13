@@ -12,8 +12,8 @@ use axum::{
     },
     response::IntoResponse,
 };
+use axum_prometheus::metrics_exporter_prometheus::PrometheusHandle;
 use chrono::Utc;
-use metrics_exporter_prometheus::PrometheusHandle;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::warn;
