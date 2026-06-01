@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use alloy_primitives::Address;
-use alloy_provider::ProviderBuilder;
-use alloy_sol_types::sol;
+use alloy::{primitives::Address, providers::ProviderBuilder, sol};
 use anyhow::{Context, Error, Result};
 use axum::{
     Router,

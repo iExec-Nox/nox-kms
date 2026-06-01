@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy_primitives::{Address, hex};
+use alloy::primitives::{Address, hex};
 use config::{Config as ConfigBuilder, ConfigError, Environment};
 use config_secret::EnvironmentSecretFile;
 use serde::Deserialize;
