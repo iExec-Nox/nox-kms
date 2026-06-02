@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
-use alloy_primitives::{Address, FixedBytes, hex};
-use alloy_signer::Signature;
-use alloy_sol_types::{SolStruct, eip712_domain, sol};
+use alloy::{
+    primitives::{Address, FixedBytes, hex},
+    signers::Signature,
+    sol,
+    sol_types::{SolStruct, eip712_domain},
+};
 use axum::{
     Json,
     extract::{Query, State},

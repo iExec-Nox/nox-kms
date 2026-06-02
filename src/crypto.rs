@@ -1,5 +1,4 @@
-use alloy_primitives::hex;
-use alloy_signer_local::PrivateKeySigner;
+use alloy::{primitives::hex, signers::local::PrivateKeySigner};
 use k256::{
     FieldBytes, ProjectivePoint, Scalar as F,
     elliptic_curve::{PrimeField, rand_core::OsRng, sec1::FromEncodedPoint},

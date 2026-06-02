@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use alloy_primitives::{FixedBytes, hex};
-use alloy_signer::SignerSync;
-use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::{eip712_domain, sol};
+use alloy::{
+    primitives::{FixedBytes, hex},
+    signers::{SignerSync, local::PrivateKeySigner},
+    sol,
+    sol_types::eip712_domain,
+};
 use k256::{ProjectivePoint, PublicKey, Scalar as F, elliptic_curve::group::GroupEncoding};
 use tracing::{debug, info};
 
