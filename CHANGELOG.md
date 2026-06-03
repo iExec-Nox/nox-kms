@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/iExec-Nox/nox-kms/compare/v0.5.0...v0.6.0) (2026-06-02)
+
+
+### Features
+
+* ensure the KMS starts with the private key matching the on chain public key ([#37](https://github.com/iExec-Nox/nox-kms/issues/37)) ([ccf8724](https://github.com/iExec-Nox/nox-kms/commit/ccf87247510483f6f3431b0e6a251fd5867f049e))
+* support multiple EVM chains ([#34](https://github.com/iExec-Nox/nox-kms/issues/34)) ([9d7d9aa](https://github.com/iExec-Nox/nox-kms/commit/9d7d9aacf36c5d93ea1dc6c57dc163b81a393f40))
+
 ## [0.5.0](https://github.com/iExec-Nox/nox-kms/compare/v0.4.0...v0.5.0) (2026-03-27)
 
 
