@@ -147,6 +147,7 @@ impl KmsService {
     /// # Returns
     ///
     /// Hex-encoded RSA-OAEP encrypted shared secret (no 0x prefix), or `KmsError::Crypto` on failure.
+    #[tracing::instrument(skip_all)]
     pub fn ecies_delegate(
         &self,
         chain_id: u32,

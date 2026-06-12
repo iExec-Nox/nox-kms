@@ -13,6 +13,10 @@ chrono = { version = "0.4.44", features = ["serde"] }
 config = "0.15.22"
 config-secret = "0.1.0"
 k256 = { version = "0.13.4", features = ["arithmetic", "serde", "expose-field"] }
+opentelemetry = "0.31.0"
+opentelemetry-appender-tracing = "0.31.1"
+opentelemetry-otlp = "0.31.1"
+opentelemetry_sdk = "0.31.0"
 rand_core = "0.9.5"
 rsa = "0.9.10"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -22,6 +26,7 @@ thiserror = "2.0.18"
 tokio = { version = "1.52.3", features = ["full"] }
 tower-http = { version = "0.6.10", features = ["trace", "cors"] }
 tracing = "0.1.44"
+tracing-opentelemetry = "0.32.1"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 validator = { version = "0.20.0", features = ["derive"] }
 

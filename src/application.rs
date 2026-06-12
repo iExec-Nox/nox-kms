@@ -24,9 +24,16 @@ const VERSIONED_PATHS: &str = "/v0/{*path}";
 
 #[derive(Clone)]
 pub struct AppState {
+    pub config: Config,
     pub kms_service: KmsService,
     pub metrics_handle: PrometheusHandle,
     pub gateway_addresses: HashMap<u32, Address>,
+}
+
+impl FromRef<AppState> for Config {
+    fn from_ref(state: &AppState) -> Self {
+        state.config.clone()
+    }
 }
 
 impl FromRef<AppState> for KmsService {
@@ -123,8 +130,9 @@ impl Application {
             .build();
         let metrics_handle = Handle::make_default_handle(Handle::default());
         Ok(Self {
-            config,
+            config: config.clone(),
             state: AppState {
+                config,
                 kms_service,
                 metrics_handle,
                 gateway_addresses,
