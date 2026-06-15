@@ -7,7 +7,7 @@ use serde::Deserialize;
 use tracing::debug;
 use validator::{Validate, ValidationError};
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Clone, Deserialize, Validate)]
 pub struct Config {
     #[validate(nested)]
     pub chains: HashMap<u32, ChainConfig>,
@@ -15,6 +15,7 @@ pub struct Config {
     pub server: ServerConfig,
     #[validate(custom(function = "validate_wallet_key"))]
     pub wallet_key: String,
+    pub otel: OtelConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Validate)]
@@ -31,6 +32,12 @@ pub struct ChainConfig {
     pub nox_compute_contract_address: Address,
     #[validate(custom(function = "validate_ecc_key"))]
     pub ecc_key: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OtelConfig {
+    pub enabled: bool,
+    pub url: String,
 }
 
 impl Config {

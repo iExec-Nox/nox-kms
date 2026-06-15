@@ -17,14 +17,18 @@ use axum::{
 };
 use axum_prometheus::metrics_exporter_prometheus::PrometheusHandle;
 use chrono::Utc;
+use opentelemetry::global;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::warn;
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+use crate::config::Config;
 use crate::constants::{EIP_712_DOMAIN_VERSION, PROTOCOL_DELEGATE_EIP712_DOMAIN_NAME};
 use crate::crypto::{validate_ephemeral_pub_key_size, validate_rsa_key_size};
 use crate::errors::KmsError;
 use crate::errors::KmsResult;
+use crate::observability::HeaderExtractor;
 use crate::service::KmsService;
 use crate::utils::{add_0x_prefix, strip_0x_prefix};
 
@@ -143,12 +147,22 @@ pub async fn not_found(uri: Uri) -> impl IntoResponse {
 ///   - Invalid EC point or RSA key format
 ///   - RSA encryption failure
 pub async fn delegate(
+    State(config): State<Config>,
     State(kms_service): State<KmsService>,
     State(gateway_addresses): State<HashMap<u32, Address>>,
     headers: HeaderMap,
     Query(query_params): Query<QueryParams>,
     Json(payload): Json<DelegateRequest>,
 ) -> KmsResult<Json<DelegateResponse>> {
+    let span = tracing::info_span!("delegate_request");
+    if config.otel.enabled {
+        let parent_cx = global::get_text_map_propagator(|propagator| {
+            propagator.extract(&HeaderExtractor(&headers))
+        });
+        span.set_parent(parent_cx).expect("should work");
+    }
+    let _ = span.enter();
+
     let chain_id = query_params.chain_id;
     if !gateway_addresses.contains_key(&chain_id) {
         warn!("Unknown Chain ID {chain_id}");
