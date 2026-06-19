@@ -71,9 +71,11 @@ Configuration is loaded from environment variables with the `NOX_KMS_` prefix. N
 | -------- | ----------- | -------- | ------- |
 | `NOX_KMS_SERVER__HOST` | Server bind address | No | `127.0.0.1` |
 | `NOX_KMS_SERVER__PORT` | Server port | No | `9000` |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__CALL_TIMEOUT` | Total request timeout applied to a RPC call against the Ethereum RPC endpoint | No | `8s` |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__CONNECT_TIMEOUT` | Timeout for the connect phase against the Ethereum RPC endpoint | No | `5s` |
 | `NOX_KMS_CHAINS__<CHAIN_ID>__ECC_KEY` | EC private key (secp256k1, 32 bytes hex-encoded, 0x prefix optional) | **Yes** | — |
-| `NOX_KMS_CHAINS__<CHAIN_ID>__NOX_COMPUTE_CONTRACT_ADDRESS` | NoxCompute contract address | No | `0x0000...0000` |
-| `NOX_KMS_CHAINS__<CHAIN_ID>__RPC_URL` | Blockchain RPC endpoint | **Yes** | `http://localhost:8545` |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__NOX_COMPUTE_CONTRACT_ADDRESS` | `NoxCompute` contract address | No | `0x0000...0000` |
+| `NOX_KMS_CHAINS__<CHAIN_ID>__RPC_URL` | Ethereum RPC endpoint URL | **Yes** | `http://localhost:8545` |
 | `NOX_KMS_WALLET_KEY` | Wallet private key for signing proofs (32 bytes hex-encoded) | **Yes** | — |
 
 For sensitive values, you can use the `_FILE` suffix to load from a file:
