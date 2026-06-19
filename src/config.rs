@@ -1,4 +1,6 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::time::Duration;
 
 use alloy::primitives::{Address, hex};
 use config::{Config as ConfigBuilder, ConfigError, Environment};
@@ -25,12 +27,18 @@ pub struct ServerConfig {
 
 #[derive(Debug, Clone, Deserialize, Validate)]
 pub struct ChainConfig {
-    #[validate(url)]
-    pub rpc_url: String,
-    #[validate(custom(function = "validate_nox_compute_contract_address"))]
-    pub nox_compute_contract_address: Address,
+    #[serde(with = "humantime_serde", default = "default_rpc_call_timeout")]
+    #[validate(custom(function = "validate_timeout"))]
+    pub call_timeout: Duration,
+    #[serde(with = "humantime_serde", default = "default_rpc_connect_timeout")]
+    #[validate(custom(function = "validate_timeout"))]
+    pub connect_timeout: Duration,
     #[validate(custom(function = "validate_ecc_key"))]
     pub ecc_key: String,
+    #[validate(custom(function = "validate_nox_compute_contract_address"))]
+    pub nox_compute_contract_address: Address,
+    #[validate(url)]
+    pub rpc_url: String,
 }
 
 impl Config {
@@ -59,6 +67,14 @@ impl Config {
     }
 }
 
+fn default_rpc_call_timeout() -> Duration {
+    Duration::from_secs(8)
+}
+
+fn default_rpc_connect_timeout() -> Duration {
+    Duration::from_secs(5)
+}
+
 fn validate_ecc_key(ecc_key: &str) -> Result<(), ValidationError> {
     let ecc_key_bytes =
         hex::decode(ecc_key).map_err(|_| ValidationError::new("ECC key is not a valid hex"))?;
@@ -78,6 +94,21 @@ fn validate_nox_compute_contract_address(
         return Err(ValidationError::new(
             "NoxCompute contract address should not be zero address",
         ));
+    }
+    Ok(())
+}
+
+/// Validate a timeout is not zero and is less than 60 seconds.
+fn validate_timeout(value: &Duration) -> Result<(), ValidationError> {
+    if *value == Duration::ZERO {
+        let err =
+            ValidationError::new("timeout_zero").with_message(Cow::from("must be greater than 0s"));
+        return Err(err);
+    }
+    if *value > Duration::from_secs(60) {
+        let err = ValidationError::new("timeout_too_large")
+            .with_message(Cow::from("must not exceed 60s"));
+        return Err(err);
     }
     Ok(())
 }
@@ -106,17 +137,19 @@ mod tests {
     fn check_config() {
         temp_env::with_vars(
             [
+                ("NOX_KMS_CHAINS__31337__CALL_TIMEOUT", Some("10s")),
+                ("NOX_KMS_CHAINS__31337__CONNECT_TIMEOUT", Some("5s")),
                 (
-                    "NOX_KMS_CHAINS__31337__RPC_URL",
-                    Some("http://localhost:8545"),
+                    "NOX_KMS_CHAINS__31337__ECC_KEY",
+                    Some("0xfedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"),
                 ),
                 (
                     "NOX_KMS_CHAINS__31337__NOX_COMPUTE_CONTRACT_ADDRESS",
                     Some("0x4bf1831c7060E01753863394820B0B940660f4C7"),
                 ),
                 (
-                    "NOX_KMS_CHAINS__31337__ECC_KEY",
-                    Some("0xfedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"),
+                    "NOX_KMS_CHAINS__31337__RPC_URL",
+                    Some("http://localhost:8545"),
                 ),
                 (
                     "NOX_KMS_WALLET_KEY",
@@ -126,15 +159,20 @@ mod tests {
             || {
                 let config = Config::load().expect("should load");
                 config.validate().expect("should validate");
-                assert_eq!("http://localhost:8545", config.chains[&31337].rpc_url);
                 assert_eq!(
-                    Address::from_str("0x4bf1831c7060E01753863394820B0B940660f4C7").unwrap(),
-                    config.chains[&31337].nox_compute_contract_address
+                    Duration::from_secs(5),
+                    config.chains[&31337].connect_timeout
                 );
+                assert_eq!(Duration::from_secs(10), config.chains[&31337].call_timeout);
                 assert_eq!(
                     "0xfedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
                     config.chains[&31337].ecc_key
                 );
+                assert_eq!(
+                    Address::from_str("0x4bf1831c7060E01753863394820B0B940660f4C7").unwrap(),
+                    config.chains[&31337].nox_compute_contract_address
+                );
+                assert_eq!("http://localhost:8545", config.chains[&31337].rpc_url);
                 assert_eq!(
                     "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                     config.wallet_key
@@ -170,16 +208,20 @@ mod tests {
     #[test]
     fn check_invalid_chain_config() {
         let chain_config = ChainConfig {
-            rpc_url: "".to_string(),
-            nox_compute_contract_address: Address::ZERO,
+            call_timeout: Duration::from_secs(120),
+            connect_timeout: Duration::from_secs(90),
             ecc_key: "".to_string(),
+            nox_compute_contract_address: Address::ZERO,
+            rpc_url: "".to_string(),
         };
         let result = chain_config.validate();
-        assert!(ValidationErrors::has_error(&result, "rpc_url"));
+        assert!(ValidationErrors::has_error(&result, "call_timeout"));
+        assert!(ValidationErrors::has_error(&result, "connect_timeout"));
+        assert!(ValidationErrors::has_error(&result, "ecc_key"));
         assert!(ValidationErrors::has_error(
             &result,
             "nox_compute_contract_address"
         ));
-        assert!(ValidationErrors::has_error(&result, "ecc_key"));
+        assert!(ValidationErrors::has_error(&result, "rpc_url"));
     }
 }

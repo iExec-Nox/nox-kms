@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy::{primitives::Address, providers::ProviderBuilder, sol};
+use alloy::{primitives::Address, providers::RootProvider, rpc::client::RpcClient, sol};
 use anyhow::{Context, Error, Result};
 use axum::{
     Router,
@@ -11,6 +11,7 @@ use axum_prometheus::{
     Handle, MakeDefaultHandle, PrometheusMetricLayer, PrometheusMetricLayerBuilder,
     metrics_exporter_prometheus::PrometheusHandle,
 };
+use reqwest::{Client, Url};
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, warn};
@@ -68,16 +69,17 @@ impl Application {
 
         let mut gateway_addresses: HashMap<u32, Address> = HashMap::new();
         for chain_id in config.chains.keys().collect::<Vec<_>>() {
-            let provider = ProviderBuilder::new()
-                .connect(&config.chains[chain_id].rpc_url)
-                .await
-                .with_context(|| {
-                    format!("Failed to connect to RPC provider for chain {chain_id}")
-                })?;
-
-            let contract = INoxCompute::new(
+            let rpc_url: Url = config.chains[chain_id].rpc_url.parse()?;
+            let client = Client::builder()
+                .connect_timeout(config.chains[chain_id].connect_timeout)
+                .timeout(config.chains[chain_id].call_timeout)
+                .build()
+                .with_context(|| format!("Failed to build RPC HTTP client for chain {chain_id}"))?;
+            let rpc_client = RpcClient::new_http_with_client(client, rpc_url);
+            let provider = RootProvider::new(rpc_client);
+            let contract: INoxCompute::INoxComputeInstance<RootProvider> = INoxCompute::new(
                 config.chains[chain_id].nox_compute_contract_address,
-                &provider,
+                provider,
             );
             let gateway_address = contract.gateway().call().await.with_context(|| {
                 format!(
