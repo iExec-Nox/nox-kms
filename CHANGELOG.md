@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/iExec-Nox/nox-kms/compare/v0.6.0...v0.6.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* define timeouts for Ethereum RPC reqwest client ([#43](https://github.com/iExec-Nox/nox-kms/issues/43)) ([a7d5da1](https://github.com/iExec-Nox/nox-kms/commit/a7d5da12b87a6d8194ab9f18db17f9b6a9023992))
+
 ## [0.6.0](https://github.com/iExec-Nox/nox-kms/compare/v0.5.0...v0.6.0) (2026-06-02)
 
 
